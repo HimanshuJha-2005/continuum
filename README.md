@@ -44,12 +44,8 @@ See [docs/graph-model.md](docs/graph-model.md).
 
 See [docs/cypher.md](docs/cypher.md).
 
-## Built with AI assistance
-
-Per Graph Hacks Rule 11: this project was built with AI coding assistants
-disclosed. The graph model, Cypher queries, and architecture were designed and
-verified by the developer, who can explain every schema decision and query.
-
 ## License
 
 MIT
+
+Built with AI coding assistance, disclosed per Graph Hacks rules.
