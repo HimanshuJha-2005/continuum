@@ -9,7 +9,49 @@
 
 ## Semantic
 
-(started Day 1)
+Upsert a fact (same subject/predicate/value merges; confidence refreshed, `last_seen` bumped):
+
+```cypher
+MERGE (subj:Entity {name: $subject})
+MERGE (f:Fact {subject: $subject, predicate: $predicate, value: $value})
+ON CREATE SET f.id = $fact_id, f.confidence = $confidence, f.valid_from = timestamp()
+ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence
+MERGE (subj)-[:RELATES {predicate: $predicate}]->(f)
+RETURN f.id
+```
+
+Link a fact to the turn it was extracted from:
+
+```cypher
+MATCH (t:Turn {id: $turn_id})
+MATCH (f:Fact {id: $fact_id})
+CREATE (t)-[:DERIVED {ts: timestamp()}]->(f)
+```
+
+Keyword recall across facts (confidence-ordered):
+
+```cypher
+MATCH (f:Fact)
+WHERE toLower(f.subject) CONTAINS toLower($q)
+   OR toLower(f.predicate) CONTAINS toLower($q)
+   OR toLower(f.value) CONTAINS toLower($q)
+RETURN f
+ORDER BY f.confidence DESC
+LIMIT $limit
+```
+
+Supersede a fact (temporal validity: old gets `valid_to`, new points at it):
+
+```cypher
+MATCH (old:Fact {id: $old_id})
+SET old.valid_to = timestamp()
+CREATE (n:Fact {id: $new_id, subject: $subject, predicate: $predicate,
+                value: $value, confidence: $confidence, valid_from: timestamp()})
+CREATE (n)-[:SUPERSEDES]->(old)
+WITH n
+MATCH (s:Entity {name: $subject})-[:RELATES]->(:Fact {id: $old_id})
+MERGE (s)-[:RELATES {predicate: $predicate}]->(n)
+```
 
 ## Procedural
 
