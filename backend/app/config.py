@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"
     gemini_api_key: str = ""
     groq_api_key: str = ""
-    gemini_model: str = "gemini-3.8-flash"
+    gemini_model: str = "gemini-3.6-flash"
     groq_model: str = "llama-3.3-70b-versatile"
 
     model_config = {"env_file": ".env", "extra": "ignore"}

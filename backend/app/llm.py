@@ -20,12 +20,11 @@ class GeminiLLM(LLM):
     def complete(self, prompt: str, system: str = "") -> str:
         from google.genai import types
 
-        contents = prompt
-        config = None
-        if system:
-            config = types.GenerateContentConfig(system_instruction=system)
+        config = types.GenerateContentConfig(
+            system_instruction=system or None
+        )
         resp = self.client.models.generate_content(
-            model=self.model, contents=contents, config=config
+            model=self.model, contents=prompt, config=config
         )
         return resp.text
 
