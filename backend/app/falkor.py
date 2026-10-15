@@ -13,11 +13,11 @@ class GraphStore:
     def user_graph(self, user_id: str):
         return self.client.select_graph(f"user:{user_id}")
 
-    def query(self, user_id: str, cypher: str, args: dict | None = None):
-        return self.user_graph(user_id).query(cypher, args=args or {})
+    def query(self, user_id: str, cypher: str, params: dict | None = None):
+        return self.user_graph(user_id).query(cypher, params=params or {})
 
-    def ro_query(self, user_id: str, cypher: str, args: dict | None = None):
-        return self.user_graph(user_id).ro_query(cypher, args=args or {})
+    def ro_query(self, user_id: str, cypher: str, params: dict | None = None):
+        return self.user_graph(user_id).ro_query(cypher, params=params or {})
 
 
 store = GraphStore()

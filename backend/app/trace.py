@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 @dataclass
 class TraceStep:
     cypher: str
-    args: dict
+    params: dict
     node_ids: list
     role: str
 
@@ -14,7 +14,7 @@ class Trace:
     turn_id: str
     steps: list[TraceStep] = field(default_factory=list)
 
-    def add(self, cypher: str, args: dict, result, role: str = "retrieval") -> None:
+    def add(self, cypher: str, params: dict, result, role: str = "retrieval") -> None:
         node_ids: list[int] = []
         for row in result.result_set:
             for item in row:
@@ -23,7 +23,7 @@ class Trace:
                 elif hasattr(item, "id"):
                     node_ids.append(item.id)
         self.steps.append(
-            TraceStep(cypher=cypher, args=args, node_ids=node_ids, role=role)
+            TraceStep(cypher=cypher, params=params, node_ids=node_ids, role=role)
         )
 
     def to_dict(self) -> dict:
@@ -32,7 +32,7 @@ class Trace:
             "steps": [
                 {
                     "cypher": s.cypher,
-                    "args": s.args,
+                    "params": s.params,
                     "node_ids": s.node_ids,
                     "role": s.role,
                 }
