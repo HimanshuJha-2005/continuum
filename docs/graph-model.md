@@ -17,6 +17,7 @@ One FalkorDB instance, one graph per user (`user:{id}`) via multigraph topology.
 | `Entity` | `name`, `type` | Semantic: extracted entities |
 | `Fact` | `predicate`, `value`, `confidence`, `valid_from`, `valid_to` | Semantic: extracted facts (temporal) |
 | `Procedure` | `name`, `steps`, `trigger` | Procedural: learned how-tos |
+| `Preference` | `key`, `value`, `updated_at` | Procedural: user preferences (latest wins) |
 | `SharedState` | `key`, `value`, `updated_at` | Handoff scratchpad between agents |
 
 ## Relationships
@@ -32,6 +33,8 @@ One FalkorDB instance, one graph per user (`user:{id}`) via multigraph topology.
 | `READ` | Agent → Fact/SharedState | `ts` | read provenance |
 | `HANDOFF_TO` | Agent → Agent | `summary`, `ts` | cross-agent handoff |
 | `SUPERSEDES` | Fact → Fact | | temporal validity chain |
+| `PREFERS` | User → Preference | | preference ownership |
+| `HAS_PROCEDURE` | User → Procedure | | procedure ownership |
 
 ## Why this design
 
