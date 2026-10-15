@@ -1,0 +1,9 @@
+falkordb>=1.0
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+python-dotenv>=1.0
+google-generativeai>=0.8
+groq>=0.13
+httpx>=0.27
