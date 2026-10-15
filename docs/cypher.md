@@ -5,7 +5,39 @@
 
 ## Episodic
 
-(started Day 1)
+Start (or re-open) a session for a user:
+
+```cypher
+MERGE (u:User {id: $user_id})
+MERGE (s:Session {id: $session_id})
+ON CREATE SET s.started_at = timestamp()
+MERGE (u)-[:HAS_SESSION]->(s)
+```
+
+Append a turn to a session:
+
+```cypher
+MATCH (s:Session {id: $session_id})
+CREATE (t:Turn {id: $turn_id, role: $role, content: $content, ts: timestamp()})
+CREATE (s)-[:CONTAINS]->(t)
+```
+
+List a user's sessions, newest first:
+
+```cypher
+MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(s:Session)
+RETURN s.id, s.started_at
+ORDER BY s.started_at DESC
+LIMIT $limit
+```
+
+Read a session's turns in order:
+
+```cypher
+MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(s:Session {id: $session_id})-[:CONTAINS]->(t:Turn)
+RETURN t.role, t.content, t.ts
+ORDER BY t.ts ASC
+```
 
 ## Semantic
 
