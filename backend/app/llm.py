@@ -12,14 +12,21 @@ class LLM:
 
 class GeminiLLM(LLM):
     def __init__(self):
-        import google.generativeai as genai
+        from google import genai
 
-        genai.configure(api_key=settings.gemini_api_key)
-        self.model = genai.GenerativeModel(settings.gemini_model)
+        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.model = settings.gemini_model
 
     def complete(self, prompt: str, system: str = "") -> str:
-        text = f"{system}\n\n{prompt}" if system else prompt
-        resp = self.model.generate_content(text)
+        from google.genai import types
+
+        contents = prompt
+        config = None
+        if system:
+            config = types.GenerateContentConfig(system_instruction=system)
+        resp = self.client.models.generate_content(
+            model=self.model, contents=contents, config=config
+        )
         return resp.text
 
 
