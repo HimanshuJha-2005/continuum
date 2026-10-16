@@ -66,9 +66,13 @@ class Agent:
 
         return {"turns": turns, "facts": facts, "preferences": preferences}
 
-    def think(self, user_id: str, query: str, trace=None) -> str:
+    def think(
+        self, user_id: str, query: str, trace=None, extra_context: str = ""
+    ) -> str:
         ctx = self.build_context(user_id, query, trace)
         lines = ["Memory context:"]
+        if extra_context:
+            lines.append(extra_context)
         if ctx["preferences"]:
             lines.append("Preferences: " + "; ".join(f"{k}={v}" for k, v in ctx["preferences"].items()))
         if ctx["facts"]:
