@@ -3,6 +3,51 @@
 > Day 1 deliverable — every query the running product executes is documented here.
 > FalkorDB runs OpenCypher **over the Redis protocol** (`GRAPH.QUERY`); no Bolt/Neo4j syntax.
 
+## Handoff & shared state
+
+Record a cross-agent handoff (`HANDOFF_TO` with summary + timestamp):
+
+```cypher
+MERGE (a:Agent {id: $from_id})
+MERGE (b:Agent {id: $to_id})
+CREATE (a)-[:HANDOFF_TO {id: $handoff_id, summary: $summary, ts: timestamp()}]->(b)
+```
+
+Latest handoff received by an agent:
+
+```cypher
+MATCH (src:Agent)-[h:HANDOFF_TO]->(dst:Agent {id: $agent_id})
+RETURN src.id, h.summary, h.ts, h.id
+ORDER BY h.ts DESC
+LIMIT 1
+```
+
+Write shared state (WROTE edge makes the authorship auditable):
+
+```cypher
+MERGE (s:SharedState {user_id: $user_id, key: $key})
+SET s.value = $value, s.updated_at = timestamp()
+WITH s
+MERGE (a:Agent {id: $agent_id})
+MERGE (a)-[w:WROTE]->(s)
+SET w.ts = timestamp()
+```
+
+Read shared state as an agent (READ edge recorded):
+
+```cypher
+MATCH (s:SharedState {user_id: $user_id, key: $key})
+RETURN s.value
+```
+
+```cypher
+MATCH (s:SharedState {user_id: $user_id, key: $key})
+WITH s
+MERGE (a:Agent {id: $agent_id})
+MERGE (a)-[r:READ]->(s)
+SET r.ts = timestamp()
+```
+
 ## Episodic
 
 Start (or re-open) a session for a user:
