@@ -4,7 +4,7 @@ from app.llm import get_llm
 
 RECENT_TURNS = """
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
-RETURN t.role, t.content, t.ts
+RETURN t
 ORDER BY t.ts DESC
 LIMIT $limit
 """
@@ -21,7 +21,7 @@ LIMIT $limit
 
 PREFERENCES = """
 MATCH (u:User {id: $user_id})-[:PREFERS]->(p:Preference)
-RETURN p.key, p.value
+RETURN p
 """
 
 SYSTEM_TEMPLATE = """You are {name}, a persistent-memory assistant inside Continuum.
@@ -47,7 +47,12 @@ class Agent:
         )
         if trace:
             trace.add(RECENT_TURNS, {"user_id": user_id, "limit": 8}, result, "episodic")
-        turns = [{"role": r[0], "content": r[1]} for r in result.result_set]
+        turns = []
+        for row in result.result_set:
+            node = row[0]
+            props = dict(node.properties)
+            props["node_id"] = node.id
+            turns.append(props)
 
         result = self.store.ro_query(user_id, FACT_MATCH, {"words": words, "limit": 8})
         if trace:
@@ -62,7 +67,10 @@ class Agent:
         result = self.store.ro_query(user_id, PREFERENCES, {"user_id": user_id})
         if trace:
             trace.add(PREFERENCES, {"user_id": user_id}, result, "procedural")
-        preferences = {r[0]: r[1] for r in result.result_set}
+        preferences = {}
+        for row in result.result_set:
+            props = dict(row[0].properties)
+            preferences[props.get("key", "")] = props.get("value", "")
 
         return {"turns": turns, "facts": facts, "preferences": preferences}
 

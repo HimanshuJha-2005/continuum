@@ -6,6 +6,7 @@ class TraceStep:
     cypher: str
     params: dict
     node_ids: list
+    edge_ids: list
     role: str
 
 
@@ -16,14 +17,21 @@ class Trace:
 
     def add(self, cypher: str, params: dict, result, role: str = "retrieval") -> None:
         node_ids: list[int] = []
+        edge_ids: list[int] = []
         for row in result.result_set:
             for item in row:
-                if hasattr(item, "nodes"):
-                    node_ids.extend(n.id for n in item.nodes)
-                elif hasattr(item, "id"):
+                if hasattr(item, "labels"):
                     node_ids.append(item.id)
+                elif hasattr(item, "relation"):
+                    edge_ids.append(item.id)
         self.steps.append(
-            TraceStep(cypher=cypher, params=params, node_ids=node_ids, role=role)
+            TraceStep(
+                cypher=cypher,
+                params=params,
+                node_ids=node_ids,
+                edge_ids=edge_ids,
+                role=role,
+            )
         )
 
     def to_dict(self) -> dict:
@@ -34,6 +42,7 @@ class Trace:
                     "cypher": s.cypher,
                     "params": s.params,
                     "node_ids": s.node_ids,
+                    "edge_ids": s.edge_ids,
                     "role": s.role,
                 }
                 for s in self.steps
