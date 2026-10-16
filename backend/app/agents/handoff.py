@@ -60,6 +60,33 @@ class Handoff:
         )
         return handoff_id
 
+    def entries(self, user_id: str) -> dict:
+        result = self.store.ro_query(
+            user_id,
+            """
+            MATCH (s:SharedState {user_id: $user_id})
+            RETURN s.key, s.value, s.updated_at
+            """,
+            {"user_id": user_id},
+        )
+        return {r[0]: {"value": r[1], "updated_at": r[2]} for r in result.result_set}
+
+    def recent_all(self, user_id: str, limit: int = 20) -> list[dict]:
+        result = self.store.ro_query(
+            user_id,
+            """
+            MATCH (a:Agent)-[h:HANDOFF_TO]->(b:Agent)
+            RETURN a.id, b.id, h.summary, h.ts
+            ORDER BY h.ts DESC
+            LIMIT $limit
+            """,
+            {"limit": limit},
+        )
+        return [
+            {"from": r[0], "to": r[1], "summary": r[2], "ts": r[3]}
+            for r in result.result_set
+        ]
+
     def latest_for(self, user_id: str, agent_id: str) -> dict | None:
         result = self.store.ro_query(
             user_id, LATEST_HANDOFF_QUERY, {"agent_id": agent_id}

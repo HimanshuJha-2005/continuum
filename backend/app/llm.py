@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from app.config import settings
 
 
@@ -47,6 +49,7 @@ class GroqLLM(LLM):
         return resp.choices[0].message.content
 
 
+@lru_cache(maxsize=1)
 def get_llm() -> LLM:
     if settings.llm_provider == "groq":
         return GroqLLM()
