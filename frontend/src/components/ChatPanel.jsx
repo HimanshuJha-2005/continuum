@@ -1,24 +1,68 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-export default function ChatPanel() {
-  const [messages, setMessages] = useState([]);
+export default function ChatPanel({ userId, messages, busy, onSend }) {
+  const [text, setText] = useState("");
+  const [agent, setAgent] = useState("scribe");
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const submit = (e) => {
+    e.preventDefault();
+    const message = text.trim();
+    if (!message || busy) return;
+    setText("");
+    onSend(message, agent);
+  };
 
   return (
-    <div style={{ flex: 1, padding: 16, borderRight: "1px solid #ddd", display: "flex", flexDirection: "column" }}>
-      <h2 style={{ marginTop: 0 }}>Continuum</h2>
-      <div style={{ flex: 1, overflowY: "auto" }}>
+    <section className="panel chat-panel">
+      <div className="panel-head">
+        <span>Chat as {userId}</span>
+        <span className="segmented">
+          <button
+            type="button"
+            className={agent === "scribe" ? "active" : ""}
+            onClick={() => setAgent("scribe")}
+          >
+            Scribe
+          </button>
+          <button
+            type="button"
+            className={agent === "scout" ? "active" : ""}
+            onClick={() => setAgent("scout")}
+          >
+            Scout
+          </button>
+        </span>
+      </div>
+      <div className="messages">
         {messages.length === 0 && (
-          <p style={{ color: "#888" }}>Chat goes here — Day 2.</p>
+          <p className="empty">
+            Ask something from an earlier session — the trace on the right shows
+            the memory it touched.
+          </p>
         )}
+        {messages.map((m, i) => (
+          <div key={i} className={`msg ${m.role}`}>
+            {m.text}
+          </div>
+        ))}
+        <div ref={bottomRef} />
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
+      <form className="composer" onSubmit={submit}>
         <input
-          style={{ flex: 1, padding: 8 }}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
           placeholder="Ask Continuum…"
-          disabled
+          disabled={busy}
         />
-        <button disabled>Send</button>
-      </div>
-    </div>
+        <button type="submit" disabled={busy || !text.trim()}>
+          {busy ? "Thinking" : "Send"}
+        </button>
+      </form>
+    </section>
   );
 }
