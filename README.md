@@ -71,6 +71,24 @@ graph LR
 | `GET /agents?user_id=` | Agents and their handoff history |
 | `GET /health` | Backend + FalkorDB status |
 
+## Performance
+
+Measured with `scripts/bench_concurrent.py` — the graph workload the chat
+path runs (turn writes, preference writes, fact/turn/preference reads),
+50 isolated tenant graphs under 32 concurrent threads, local Docker
+FalkorDB, steady state:
+
+| metric | value |
+|---|---|
+| Throughput | ~4,400 ops/s |
+| Reads p50 / p95 | ~3 ms / ~6 ms |
+| Writes p50 / p95 | ~7 ms / ~16 ms |
+
+First-run against cold graphs pays an index-build tax (writes p95 ~90 ms),
+then settles into the numbers above. Per-user multigraph isolation means no
+tenant can starve another's query planning. Run it yourself:
+`python scripts/bench_concurrent.py`.
+
 ## Cypher queries the product depends on
 
 See [docs/cypher.md](docs/cypher.md).
