@@ -3,20 +3,31 @@ import re
 import uuid
 
 from app.llm import get_llm
+from app.memory.procedural import ProceduralMemory
 
 EXTRACT_SYSTEM = "You extract structured memory from text. Respond with JSON only."
-EXTRACT_PROMPT = """Extract entities and facts from the text below.
+EXTRACT_PROMPT = """Extract entities, facts, and preferences from the text below.
 
 Rules:
 - entities: up to 5 objects with "name" and "type" (type is a short noun: person, language, project, place, org, etc.)
 - facts: up to 5 objects with "subject", "predicate", "value", "confidence" (confidence between 0.0 and 1.0)
+- preferences: up to 3 objects with "key" and "value" for explicit statements of how the user wants things
+  done or to be addressed (e.g. "always answer in short bullets" -> {{"key": "answer_style", "value": "short bullets"}}).
+  Use short snake_case keys. Empty list if the text states no preference.
 - Write facts in third person. The subject must be a concrete name or noun (Python, Alice, Continuum) — never a pronoun like "I", "we", or a placeholder like "User".
 - The predicate must be a short verb phrase such as "uses for", "prefers", "deploys to".
 - Only extract what is stated or clearly implied. Do not invent.
+- If the text is only a question asking what is true, return empty lists for all fields.
 
 Text: {text}
 
 JSON:"""
+
+QUESTION_RE = re.compile(
+    r"^\s*(?:what|when|where|which|who|whom|whose|how|why|is|are|was|were"
+    r"|do|does|did|can|could|would|should|will|has|have|had)\b[^?]*\?\s*$",
+    re.I,
+)
 
 
 def _parse_json(raw: str) -> dict:
@@ -39,6 +50,14 @@ class SemanticMemory:
         return (self.llm or get_llm()).complete(prompt, system=system)
 
     def extract(self, user_id: str, text: str, turn_id: str | None = None) -> dict:
+        if QUESTION_RE.match(text):
+            return {
+                "entities": [],
+                "facts": [],
+                "preferences": [],
+                "fact_ids": [],
+                "skipped": True,
+            }
         prompt = EXTRACT_PROMPT.format(text=text)
         for attempt in range(2):
             try:
@@ -49,8 +68,14 @@ class SemanticMemory:
                     raise
         entities = data.get("entities") or []
         facts = data.get("facts") or []
+        preferences = data.get("preferences") or []
         for e in entities:
-            self._upsert_entity(user_id, e.get("name", ""), e.get("type", ""))
+            self._upsert_entity(user_id, e.get("name", ""), e.get("type", ""), turn_id=turn_id)
+        for p in preferences:
+            key = re.sub(r"[^a-z0-9_]+", "_", str(p.get("key", "")).strip().lower()).strip("_")[:40]
+            value = str(p.get("value", "")).strip()[:200]
+            if key and value:
+                ProceduralMemory(self.store).record_preference(user_id, key, value)
         fact_ids = [
             self.upsert_fact(
                 user_id,
@@ -66,9 +91,16 @@ class SemanticMemory:
             )
             for f in facts
         ]
-        return {"entities": entities, "facts": facts, "fact_ids": fact_ids}
+        return {
+            "entities": entities,
+            "facts": facts,
+            "preferences": preferences,
+            "fact_ids": fact_ids,
+        }
 
-    def _upsert_entity(self, user_id: str, name: str, type_: str) -> None:
+    def _upsert_entity(
+        self, user_id: str, name: str, type_: str, turn_id: str | None = None
+    ) -> None:
         if not name:
             return
         self.store.query(
@@ -79,6 +111,16 @@ class SemanticMemory:
             """,
             {"name": name, "type": type_},
         )
+        if turn_id:
+            self.store.query(
+                user_id,
+                """
+                MATCH (t:Turn {id: $turn_id})
+                MATCH (e:Entity {name: $name})
+                MERGE (t)-[:MENTIONS]->(e)
+                """,
+                {"turn_id": turn_id, "name": name},
+            )
 
     def upsert_fact(
         self, user_id: str, fact: dict, turn_id: str | None = None
