@@ -90,6 +90,11 @@ MATCH (u:User {id: $user_id})-[:PREFERS]->(p:Preference)
 RETURN p
 """
 
+PROCEDURES = """
+MATCH (u:User {id: $user_id})-[:HAS_PROCEDURE]->(p:Procedure)
+RETURN p
+"""
+
 SYSTEM_TEMPLATE = """You are {name}, a persistent-memory assistant inside Continuum.
 You answer ONLY from the memory context provided: recent conversation turns,
 facts, preferences, and supersession history pulled from your graph memory.
@@ -104,7 +109,9 @@ earlier, originally, or how/when it changed, answer from the history chain
 "Previously X, changed to Y [fact: ...]". Never claim the memory lacks a
 value that appears in the History lines.
 Only when nothing in the context relates to the question, say the memory does
-not contain it yet. Keep answers short and direct."""
+not contain it yet. If Procedures lines are present and the user asks how to
+do something or triggers a recorded procedure, recite or follow the recorded
+steps in order. Keep answers short and direct."""
 
 
 class Agent:
@@ -220,11 +227,21 @@ class Agent:
             props = dict(row[0].properties)
             preferences[props.get("key", "")] = props.get("value", "")
 
+        result = self.store.ro_query(user_id, PROCEDURES, {"user_id": user_id})
+        if trace:
+            trace.add(PROCEDURES, {"user_id": user_id}, result, "procedural")
+        procedures = []
+        for row in result.result_set:
+            props = dict(row[0].properties)
+            props["node_id"] = row[0].id
+            procedures.append(props)
+
         return {
             "turns": turns,
             "facts": facts,
             "history": history,
             "preferences": preferences,
+            "procedures": procedures,
             "matched": matched,
         }
 
@@ -243,6 +260,9 @@ class Agent:
             lines.append(extra_context)
         if ctx["preferences"]:
             lines.append("Preferences: " + "; ".join(f"{k}={v}" for k, v in ctx["preferences"].items()))
+        for p in ctx.get("procedures", []):
+            steps = " -> ".join(p.get("steps", []))
+            lines.append(f"Procedure: {p.get('name')} (trigger: {p.get('trigger', '')}): {steps}")
         if ctx["facts"]:
             for f in ctx["facts"]:
                 lines.append(f"Fact: {f.get('subject')} {f.get('predicate')} {f.get('value')}")
