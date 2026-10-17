@@ -82,6 +82,9 @@ this arc — each step lights up a different part of the memory graph:
 
 One FalkorDB instance, one graph per user (`user:{id}`) via multigraph
 topology. Full rationale in [docs/graph-model.md](docs/graph-model.md).
+Retrieval uses fulltext search + multi-hop graph traversals rather than
+vector embeddings — chosen for deterministic explainability and reproducible
+demo runs (see graph-model.md "Design choices").
 
 ```mermaid
 graph LR
