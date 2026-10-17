@@ -43,8 +43,8 @@ def _node_label(node) -> str:
 def _elements(result) -> dict:
     nodes: dict[int, dict] = {}
     edges: dict[int, dict] = {}
-    for row in result.result_set:
-        node, rel, _ = row[0], row[1], row[2]
+
+    def add_node(node) -> None:
         nodes[node.id] = {
             "data": {
                 "id": node.id,
@@ -52,7 +52,12 @@ def _elements(result) -> dict:
                 "type": (node.labels or ["?"])[0],
             }
         }
+
+    for row in result.result_set:
+        node, rel, neighbor = row[0], row[1], row[2]
+        add_node(node)
         if rel is not None:
+            add_node(neighbor)
             edges[rel.id] = {
                 "data": {
                     "id": rel.id,
@@ -86,6 +91,14 @@ def chat(body: ChatRequest):
     turn_id = epi.add_turn(body.user_id, body.session_id, "user", body.message)
     trace = Trace(turn_id=turn_id)
     try:
+        extracted = sem.extract(body.user_id, body.message, turn_id=turn_id)
+        extraction = {
+            "facts": len(extracted["facts"]),
+            "entities": len(extracted["entities"]),
+        }
+    except Exception as e:
+        extraction = {"error": str(e)[:200]}
+    try:
         if body.agent == "scout":
             scout = Scout(store)
             result = scout.act(body.user_id, body.message, trace=trace)
@@ -97,14 +110,7 @@ def chat(body: ChatRequest):
             response = {"answer": answer}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"agent failed: {e}")
-    try:
-        extracted = sem.extract(body.user_id, body.message, turn_id=turn_id)
-        response["extracted"] = {
-            "facts": len(extracted["facts"]),
-            "entities": len(extracted["entities"]),
-        }
-    except Exception as e:
-        response["extracted"] = {"error": str(e)[:200]}
+    response["extracted"] = extraction
     response["turn_id"] = turn_id
     response["trace"] = trace.to_dict()
     return response
