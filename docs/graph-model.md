@@ -1,7 +1,5 @@
 # Graph model
 
-> Day 1 deliverable — filled as the schema lands.
-
 ## Overview
 
 One FalkorDB instance, one graph per user (`user:{id}`) via multigraph topology.
@@ -38,4 +36,17 @@ One FalkorDB instance, one graph per user (`user:{id}`) via multigraph topology.
 
 ## Why this design
 
-(rationale — Day 1)
+- **One graph per user** — Track 02 requires separate memory per tenant.
+  FalkorDB's multigraph topology gives every user an isolated brain inside a
+  single instance; deleting a tenant is dropping one graph.
+- **Turns with timestamps** — episodic recall is meaningless without order.
+  `Turn.ts` + `Session.started_at` make "what did we discuss last time" a
+  sorted traversal, not a full scan.
+- **Temporal facts** — memory must update over time. Facts carry
+  `valid_from`/`valid_to`, and a corrected fact `SUPERSEDES` the old one
+  instead of overwriting it, so the trace can show how knowledge evolved.
+- **`DERIVED` from Turn to Fact** — every extracted fact points back to the
+  message it came from. Explainability starts with provenance.
+- **Coordination lives in the graph** — `SharedState` with `WROTE`/`READ`
+  edges and `HANDOFF_TO` between agents means the handoff protocol is itself
+  traversable data. Remove FalkorDB and the agents cannot coordinate at all.

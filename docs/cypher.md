@@ -164,7 +164,3 @@ MATCH (u:User {id: $user_id})-[:HAS_PROCEDURE]->(p:Procedure)
 WHERE $trigger IS NULL OR p.trigger = $trigger
 RETURN p.name, p.steps, p.trigger
 ```
-
-## Handoff & shared state
-
-(started Day 2)

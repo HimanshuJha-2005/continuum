@@ -38,7 +38,38 @@ https://aistudio.google.com) or `GROQ_API_KEY`.
 
 ## Graph model
 
-See [docs/graph-model.md](docs/graph-model.md).
+One FalkorDB instance, one graph per user (`user:{id}`) via multigraph
+topology. Full rationale in [docs/graph-model.md](docs/graph-model.md).
+
+```mermaid
+graph LR
+  User -->|HAS_SESSION| Session -->|CONTAINS| Turn
+  Turn -->|MENTIONS| Entity
+  Turn -->|DERIVED| Fact
+  Entity -->|RELATES| Fact
+  Fact -->|SUPERSEDES| Fact
+  User -->|PREFERS| Preference
+  User -->|HAS_PROCEDURE| Procedure
+  Scout -->|WROTE / READ| SharedState
+  Scout -->|HANDOFF_TO| Scribe
+```
+
+| Memory type | Nodes | What it answers |
+|---|---|---|
+| Episodic | `Session`, `Turn` | what happened, and when |
+| Semantic | `Entity`, `Fact` | what is true (with temporal validity) |
+| Procedural | `Preference`, `Procedure` | how this user likes things done |
+| Coordination | `SharedState`, `HANDOFF_TO` | what agents tell each other |
+
+## API
+
+| Route | What it does |
+|---|---|
+| `POST /chat` | Ask Scribe (answer) or Scout (research); returns the memory trace |
+| `GET /memory?user_id=` | Sessions, facts, preferences, procedures, shared state |
+| `GET /memory/subgraph?user_id=&node_ids=` | Cytoscape elements for traced nodes + neighbors |
+| `GET /agents?user_id=` | Agents and their handoff history |
+| `GET /health` | Backend + FalkorDB status |
 
 ## Cypher queries the product depends on
 
