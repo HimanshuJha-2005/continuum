@@ -3,6 +3,7 @@ import sys
 sys.path.insert(0, "backend")
 
 from app.falkor import GraphStore
+from app.memory.episodic import EpisodicMemory
 from app.memory.semantic import SemanticMemory
 
 USER = "alice-test"
@@ -13,12 +14,40 @@ def main() -> int:
     store.query(USER, "MATCH (n) DETACH DELETE n")
     sem = SemanticMemory(store)
 
+    epi = EpisodicMemory(store)
+    epi.start_session(USER, "s1")
+    turn_id = epi.add_turn(USER, "s1", "user", "I use Python for backend services and TypeScript on the frontend.")
+
     extracted = sem.extract(
-        USER, "I use Python for backend services and TypeScript on the frontend."
+        USER, "I use Python for backend services and TypeScript on the frontend.",
+        turn_id=turn_id,
     )
     assert extracted["facts"] or extracted["entities"], extracted
     print("extracted:", extracted["facts"])
 
+    mentions = store.ro_query(
+        USER,
+        "MATCH (:Turn {id: $tid})-[:MENTIONS]->(:Entity) RETURN count(*)",
+        {"tid": turn_id},
+    ).result_set[0][0]
+    assert mentions >= 1, f"MENTIONS edge missing after extraction: {mentions}"
+
+    skipped = sem.extract(USER, "What is my favorite color?")
+    assert skipped["facts"] == [] and skipped["entities"] == [], skipped
+    assert skipped.get("skipped") is True, skipped
+
+    prefs = sem.extract(USER, "Always answer me in short bullet points only.")
+    assert prefs.get("preferences"), f"preference not extracted: {prefs}"
+    recorded = store.ro_query(
+        USER,
+        "MATCH (u:User {id: 'alice-test'})-[:PREFERS]->(p:Preference) RETURN count(*)",
+    ).result_set[0][0]
+    assert recorded >= 1, "preference node not recorded from chat extraction"
+
+    sem.upsert_fact(
+        USER,
+        {"subject": "Python", "predicate": "used for", "value": "backend services", "confidence": 1.0},
+    )
     hits = sem.recall(USER, "python")
     assert len(hits) >= 1, hits
     old = hits[0]

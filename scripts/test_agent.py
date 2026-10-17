@@ -2,7 +2,7 @@ import sys
 
 sys.path.insert(0, "backend")
 
-from app.agents.base import Agent
+from app.agents.base import Agent, significant_words
 from app.falkor import GraphStore
 from app.memory.episodic import EpisodicMemory
 from app.memory.procedural import ProceduralMemory
@@ -35,6 +35,10 @@ def main() -> int:
     assert len(trace.steps) >= 3, [s.role for s in trace.steps]
     roles = [s.role for s in trace.steps]
     assert "episodic" in roles and "semantic" in roles and "procedural" in roles, roles
+
+    assert significant_words("Do I use Go?") == ["use", "go"], significant_words("Do I use Go?")
+    assert significant_words("What about my API key?") == ["api", "key"], significant_words("What about my API key?")
+    assert significant_words("What?") == [], significant_words("What?")
 
     print("roles traced:", roles)
     print("answer:", answer[:300])

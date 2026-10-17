@@ -2,6 +2,7 @@ import sys
 
 sys.path.insert(0, "backend")
 
+from app.agents.handoff import Handoff
 from app.agents.scout import Scout
 from app.agents.scribe import Scribe
 from app.falkor import GraphStore
@@ -56,9 +57,24 @@ def main() -> int:
     ).result_set[0][0]
     assert read >= 1, read
 
+    statuses = store.ro_query(
+        USER, "MATCH ()-[h:HANDOFF_TO]->() RETURN h.status"
+    ).result_set
+    assert statuses and all(r[0] == "consumed" for r in statuses), statuses
+
+    handoffs = Handoff(store)
+    unrelated_id = handoffs.create(
+        USER, "scout", "scribe", "Researched penguin migration patterns"
+    )
+    stale = scribe.act(USER, "What is my favorite pizza?", trace=Trace(turn_id="t-stale"))
+    assert isinstance(stale, str), stale
+    assert "penguin" not in stale.lower(), f"irrelevant question received stale handoff: {stale}"
+    still = handoffs.latest_for(USER, "scribe")
+    assert still and still["id"] == unrelated_id, "irrelevant handoff was consumed anyway"
+
     print("scout findings:", findings)
     print("scribe answer:", answer[:250])
-    print("scout->scribe handoff + shared state + READ audit OK")
+    print("scout->scribe handoff consumed + relevance gate + READ audit OK")
     return 0
 
 

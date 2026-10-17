@@ -41,7 +41,14 @@ def main() -> int:
     assert latest and latest["from"] == "scout", latest
     assert h.latest_for(USER, "scout") is None
 
-    print("handoff create/latest OK, shared state set/get OK, WROTE/READ edges OK, isolation OK")
+    h.mark_consumed(USER, latest["id"])
+    assert h.latest_for(USER, "scribe") is None, "consumed handoff still pending"
+    status = store.ro_query(
+        USER, "MATCH ()-[h:HANDOFF_TO]->() RETURN h.status"
+    ).result_set
+    assert all(row[0] == "consumed" for row in status), status
+
+    print("handoff create/latest/consume OK, shared state set/get OK, WROTE/READ edges OK, isolation OK")
     return 0
 
 
