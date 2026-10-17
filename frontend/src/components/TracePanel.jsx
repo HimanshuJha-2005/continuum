@@ -55,7 +55,7 @@ const STYLE = [
   },
 ];
 
-export default function TracePanel({ steps, elements, stats }) {
+export default function TracePanel({ steps, elements, stats, handoffs }) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
   const hasGraph = elements.nodes.length > 0;
@@ -114,6 +114,21 @@ export default function TracePanel({ steps, elements, stats }) {
           <span className="stat">
             <b>{stats.state}</b> shared state
           </span>
+          <span className="stat">
+            <b>{stats.handoffs}</b> handoffs
+          </span>
+        </div>
+      )}
+      {handoffs && handoffs.length > 0 && (
+        <div className="handoffs">
+          {handoffs.map((h, i) => (
+            <div key={i} className="handoff-line">
+              <span className="handoff-route">
+                {h.from} → {h.to}
+              </span>
+              <span className="handoff-summary">{h.summary}</span>
+            </div>
+          ))}
         </div>
       )}
       <div className="canvas-wrap">

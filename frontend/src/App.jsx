@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import ChatPanel from "./components/ChatPanel.jsx";
 import TracePanel from "./components/TracePanel.jsx";
-import { getHealth, getMemory, getSubgraph, sendChat } from "./api.js";
+import { getAgents, getHealth, getMemory, getSubgraph, sendChat } from "./api.js";
 
 function now() {
   return new Date().toLocaleTimeString([], {
@@ -18,19 +18,23 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [health, setHealth] = useState("down");
   const [stats, setStats] = useState(null);
+  const [handoffs, setHandoffs] = useState([]);
 
   const loadStats = useCallback(async () => {
     try {
-      const m = await getMemory(userId);
+      const [m, a] = await Promise.all([getMemory(userId), getAgents(userId)]);
       setStats({
         sessions: m.sessions.length,
         facts: m.facts.length,
         preferences: Object.keys(m.preferences).length,
         procedures: m.procedures.length,
         state: Object.keys(m.shared_state).length,
+        handoffs: a.handoffs.length,
       });
+      setHandoffs(a.handoffs.slice(0, 3));
     } catch {
       setStats(null);
+      setHandoffs([]);
     }
   }, [userId]);
 
@@ -153,7 +157,7 @@ export default function App() {
           busy={busy}
           onSend={handleSend}
         />
-        <TracePanel steps={steps} elements={elements} stats={stats} />
+        <TracePanel steps={steps} elements={elements} stats={stats} handoffs={handoffs} />
       </div>
     </div>
   );

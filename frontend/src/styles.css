@@ -358,6 +358,40 @@ body {
   font-weight: 600;
 }
 
+.handoffs {
+  padding: 10px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.handoff-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.handoff-route {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #4338ca;
+  background: #eef2ff;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+}
+
+.handoff-summary {
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .canvas-wrap {
   flex: 1;
   min-height: 0;
