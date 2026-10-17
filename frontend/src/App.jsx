@@ -70,8 +70,11 @@ export default function App() {
         const elapsed = ((Date.now() - started) / 1000).toFixed(1);
         const reply = res.answer ?? res.findings ?? "(no response)";
         const meta = [];
-        if (res.extracted && res.extracted.facts !== undefined) {
+        if (res.extracted && res.extracted.facts !== undefined && !res.extracted.skipped) {
           meta.push(`${res.extracted.facts} facts extracted`);
+          if (res.extracted.preferences) {
+            meta.push(`${res.extracted.preferences} preferences learned`);
+          }
         }
         meta.push(`${elapsed}s`);
         setMessages((m) => [
