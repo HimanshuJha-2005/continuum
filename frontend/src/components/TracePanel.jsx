@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 
 const STYLE = [
@@ -58,11 +58,16 @@ const STYLE = [
 export default function TracePanel({ steps, elements, stats, handoffs }) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
+  const [selected, setSelected] = useState(null);
   const hasGraph = elements.nodes.length > 0;
+  const sourceSteps = selected
+    ? steps.filter((s) => s.node_ids.includes(selected.id))
+    : [];
 
   useEffect(() => {
     if (!containerRef.current) return;
     cyRef.current?.destroy();
+    setSelected(null);
     const cy = cytoscape({
       container: containerRef.current,
       elements: [...elements.nodes, ...elements.edges],
@@ -74,6 +79,10 @@ export default function TracePanel({ steps, elements, stats, handoffs }) {
         idealEdgeLength: 70,
         nodeRepulsion: 4500,
       },
+    });
+    cy.on("tap", "node", (evt) => setSelected(evt.target.data()));
+    cy.on("tap", (evt) => {
+      if (evt.target === cy) setSelected(null);
     });
     cyRef.current = cy;
     return () => cy.destroy();
@@ -139,6 +148,50 @@ export default function TracePanel({ steps, elements, stats, handoffs }) {
           </div>
         )}
       </div>
+      {selected && (
+        <div className="node-drawer">
+          <div className="node-drawer-head">
+            <span className={`node-type ${String(selected.type).toLowerCase()}`}>
+              {selected.type}
+            </span>
+            <span className="node-title">{selected.label}</span>
+            <button
+              type="button"
+              className="node-close"
+              onClick={() => setSelected(null)}
+            >
+              close
+            </button>
+          </div>
+          <dl className="node-props">
+            {Object.entries(selected.props || {}).map(([k, v]) => (
+              <div key={k} className="node-prop">
+                <dt>{k}</dt>
+                <dd>
+                  {typeof v === "object" && v !== null
+                    ? JSON.stringify(v)
+                    : String(v)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="node-source-title">Fetched by</p>
+          {sourceSteps.map((s, i) => (
+            <details key={i} className="step">
+              <summary>
+                <span className={`badge ${s.role}`}>{s.role}</span>
+                <span className="count">show cypher</span>
+              </summary>
+              <pre>{s.cypher.trim()}</pre>
+            </details>
+          ))}
+          {sourceSteps.length === 0 && (
+            <p className="node-source-note">
+              Neighbor node — expanded from a traced node.
+            </p>
+          )}
+        </div>
+      )}
       <div className="steps">
         <p className="steps-title">Queries that fetched this answer</p>
         {steps.length === 0 && (
