@@ -63,6 +63,21 @@ def main() -> int:
         """,
     ).result_set[0][0]
     assert both == 2, f"expected old + new fact chain, got {both}"
+    dupes = store.ro_query(
+        USER,
+        """
+        MATCH (f:Fact)
+        WITH f.id AS fid, count(*) AS c
+        WHERE c > 1
+        RETURN fid, c
+        """,
+    ).result_set
+    assert not dupes, f"duplicate fact nodes: {dupes}"
+    bare = store.ro_query(
+        USER,
+        "MATCH (f:Fact) WHERE f.subject IS NULL RETURN f.id",
+    ).result_set
+    assert not bare, f"bare fact nodes: {bare}"
 
     print("semantic extract/recall/supersede OK")
     return 0
