@@ -7,6 +7,7 @@ ENTITY_EXPANSION = """
 MATCH (e:Entity)-[:RELATES]->(f:Fact)
 WHERE f.id IN $seed_ids
 MATCH (e)-[:RELATES]->(other:Fact)
+WHERE other.valid_to IS NULL
 RETURN e, other
 LIMIT 30
 """
@@ -45,8 +46,9 @@ class Scout(Agent):
             if (f.get("subject"), f.get("predicate"), f.get("value")) not in seen_values
         ]
 
-        lines = [f'Research report for "{query}"']
-        lines.append(f"\nDirect facts ({len(ctx['facts'])}):")
+        title = f'Research report for "{query}"'
+        lines: list[str] = []
+        lines.append(f"Direct facts ({len(ctx['facts'])}):")
         if ctx["facts"]:
             lines += [
                 f"- {f.get('subject')} {f.get('predicate')} {f.get('value')}"
@@ -65,7 +67,24 @@ class Scout(Agent):
             ]
         if ctx["turns"]:
             lines.append(f"\nRecent turns: {len(ctx['turns'])}")
-        report = "\n".join(lines)
+        evidence = "\n".join(lines)
+
+        synthesis = ""
+        try:
+            synthesis = self.llm.complete(
+                f"Research question: {query}\n\n"
+                f"Evidence from the memory graph:\n{evidence}\n\n"
+                "Write a 3-4 sentence research summary based only on this evidence. "
+                "Cite concrete facts as [fact: subject predicate value]. "
+                "If the evidence does not answer the question, say what is missing.",
+                system=(
+                    "You are Scout, a graph research agent. Use only the evidence "
+                    "provided — no outside knowledge. Be concrete and direct."
+                ),
+            ).strip()
+        except Exception:
+            synthesis = ""
+        report = title + (f"\n\n{synthesis}" if synthesis else "") + f"\n\n{evidence}"
 
         handoffs = Handoff(self.store)
         handoffs.set_shared_state(user_id, STATE_KEY, report, self.agent_id)
