@@ -96,23 +96,25 @@ ORDER BY t.ts DESC, id(t) DESC
 LIMIT $limit
 ```
 
-Keyword fact match for the question:
+Keyword fact match for the question (superseded facts excluded):
 
 ```cypher
 MATCH (f:Fact)
 WHERE any(w IN $words WHERE toLower(f.subject) CONTAINS w
           OR toLower(f.predicate) CONTAINS w
           OR toLower(f.value) CONTAINS w)
+AND f.valid_to IS NULL
 RETURN f
 ORDER BY f.confidence DESC
 LIMIT $limit
 ```
 
-Fallback when keyword match comes up thin — newest facts regardless of
+Fallback when keyword match comes up thin — newest active facts regardless of
 keywords (the model judges relevance):
 
 ```cypher
 MATCH (f:Fact)
+WHERE f.valid_to IS NULL
 RETURN f
 ORDER BY f.last_seen DESC, f.confidence DESC
 LIMIT $limit
@@ -131,23 +133,25 @@ LIMIT 30
 
 ## Semantic
 
-Conflict check before upsert (same subject + predicate, different value →
-supersede instead of parallel fact):
+Conflict check before upsert — every *active* fact with the same subject and
+predicate but a different value gets superseded (invariant: at most one active
+fact per subject/predicate):
 
 ```cypher
 MATCH (f:Fact {subject: $subject, predicate: $predicate})
 WHERE f.value <> $value
+AND f.valid_to IS NULL
 RETURN f.id
-LIMIT 1
 ```
 
-Upsert a fact (same subject/predicate/value merges; confidence refreshed, `last_seen` bumped):
+Upsert a fact (same subject/predicate/value merges; confidence refreshed,
+`last_seen` bumped, a dead fact with that value is reactivated):
 
 ```cypher
 MERGE (subj:Entity {name: $subject})
 MERGE (f:Fact {subject: $subject, predicate: $predicate, value: $value})
 ON CREATE SET f.id = $fact_id, f.confidence = $confidence, f.valid_from = timestamp()
-ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence
+ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence, f.valid_to = NULL
 MERGE (subj)-[:RELATES {predicate: $predicate}]->(f)
 RETURN f.id
 ```
@@ -160,29 +164,38 @@ MATCH (f:Fact {id: $fact_id})
 CREATE (t)-[:DERIVED {ts: timestamp()}]->(f)
 ```
 
-Keyword recall across facts (confidence-ordered):
+Keyword recall across active facts (confidence-ordered):
 
 ```cypher
 MATCH (f:Fact)
-WHERE toLower(f.subject) CONTAINS toLower($q)
-   OR toLower(f.predicate) CONTAINS toLower($q)
-   OR toLower(f.value) CONTAINS toLower($q)
+WHERE (toLower(f.subject) CONTAINS toLower($q)
+    OR toLower(f.predicate) CONTAINS toLower($q)
+    OR toLower(f.value) CONTAINS toLower($q))
+AND f.valid_to IS NULL
 RETURN f
 ORDER BY f.confidence DESC
 LIMIT $limit
 ```
 
-Supersede a fact (temporal validity: old gets `valid_to`, new points at it):
+Supersede a fact (temporal validity: old gets `valid_to`; the new value
+MERGEs so re-stating a previous value reactivates it instead of duplicating):
 
 ```cypher
 MATCH (old:Fact {id: $old_id})
 SET old.valid_to = timestamp()
-CREATE (n:Fact {id: $new_id, subject: $subject, predicate: $predicate,
-                value: $value, confidence: $confidence, valid_from: timestamp()})
-CREATE (n)-[:SUPERSEDES]->(old)
-WITH n
+MERGE (n:Fact {subject: $subject, predicate: $predicate, value: $value})
+ON CREATE SET n.id = $new_id, n.confidence = $confidence, n.valid_from = timestamp()
+ON MATCH SET n.last_seen = timestamp(), n.confidence = $confidence, n.valid_to = NULL
+MERGE (n)-[:SUPERSEDES]->(old)
+RETURN n.id
+```
+
+Relink the subject entity to the new fact (keeps `RELATES` expansion working
+on the current version):
+
+```cypher
 MATCH (s:Entity {name: $subject})-[:RELATES]->(:Fact {id: $old_id})
-MERGE (s)-[:RELATES {predicate: $predicate}]->(n)
+MERGE (s)-[:RELATES {predicate: $predicate}]->(:Fact {id: $stored_id})
 ```
 
 ## Procedural
