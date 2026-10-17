@@ -191,7 +191,8 @@ class SemanticMemory:
             user_id,
             """
             MATCH (s:Entity {name: $subject})-[:RELATES]->(:Fact {id: $old_id})
-            MERGE (s)-[:RELATES {predicate: $predicate}]->(:Fact {id: $stored_id})
+            MATCH (n:Fact {id: $stored_id})
+            MERGE (s)-[:RELATES {predicate: $predicate}]->(n)
             """,
             {
                 "subject": new_fact["subject"],
