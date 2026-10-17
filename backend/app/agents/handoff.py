@@ -6,15 +6,22 @@ MERGE (b:Agent {id: $to_id})
 CREATE (a)-[:HANDOFF_TO {
     id: $handoff_id,
     summary: $summary,
+    status: 'pending',
     ts: timestamp()
 }]->(b)
 """
 
 LATEST_HANDOFF_QUERY = """
 MATCH (src:Agent)-[h:HANDOFF_TO]->(dst:Agent {id: $agent_id})
+WHERE h.status = 'pending'
 RETURN src.id, h.summary, h.ts, h.id
 ORDER BY h.ts DESC
 LIMIT 1
+"""
+
+MARK_CONSUMED = """
+MATCH ()-[h:HANDOFF_TO {id: $handoff_id}]->()
+SET h.status = 'consumed', h.consumed_at = timestamp()
 """
 
 STATE_GET = """
@@ -76,18 +83,19 @@ class Handoff:
             user_id,
             """
             MATCH (a:Agent)-[h:HANDOFF_TO]->(b:Agent)
-            RETURN a.id, b.id, h.summary, h.ts
+            RETURN a.id, b.id, h.summary, h.ts, h.status
             ORDER BY h.ts DESC
             LIMIT $limit
             """,
             {"limit": limit},
         )
         return [
-            {"from": r[0], "to": r[1], "summary": r[2], "ts": r[3]}
+            {"from": r[0], "to": r[1], "summary": r[2], "ts": r[3], "status": r[4]}
             for r in result.result_set
         ]
 
     def latest_for(self, user_id: str, agent_id: str) -> dict | None:
+        """Newest pending handoff for this agent (consumed ones never re-inject)."""
         result = self.store.ro_query(
             user_id, LATEST_HANDOFF_QUERY, {"agent_id": agent_id}
         )
@@ -95,6 +103,9 @@ class Handoff:
             return None
         row = result.result_set[0]
         return {"from": row[0], "summary": row[1], "ts": row[2], "id": row[3]}
+
+    def mark_consumed(self, user_id: str, handoff_id: str) -> None:
+        self.store.query(user_id, MARK_CONSUMED, {"handoff_id": handoff_id})
 
     def shared_state(self, user_id: str, key: str, agent_id: str | None = None):
         if agent_id:
