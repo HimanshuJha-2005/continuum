@@ -36,6 +36,27 @@ def main() -> int:
     assert skipped["facts"] == [] and skipped["entities"] == [], skipped
     assert skipped.get("skipped") is True, skipped
 
+    from app.memory.semantic import QUESTION_RE
+
+    question_cases = [
+        "What language do I prefer",          # no question mark
+        "Tell me what my deploy target is",   # imperative, no question mark
+        "when did we switch databases",       # lowercase wh, no mark
+        "Show me how the memory works",       # imperative show
+        "What is my favorite color?",         # classic
+        "Do I still use AWS?",                # aux-led with mark
+    ]
+    statement_cases = [
+        "I prefer TypeScript for new projects",
+        "We now deploy to GCP",               # update must still extract
+        "Can you update my deploy target to GCP?",  # request carrying an update
+        "Always answer in short bullets",
+    ]
+    for q in question_cases:
+        assert QUESTION_RE.match(q), f"question not skipped: {q}"
+    for s in statement_cases:
+        assert not QUESTION_RE.match(s), f"statement wrongly skipped: {s}"
+
     prefs = sem.extract(USER, "Always answer me in short bullet points only.")
     assert prefs.get("preferences"), f"preference not extracted: {prefs}"
     recorded = store.ro_query(

@@ -15,17 +15,26 @@ Rules:
   done or to be addressed (e.g. "always answer in short bullets" -> {{"key": "answer_style", "value": "short bullets"}}).
   Use short snake_case keys. Empty list if the text states no preference.
 - Write facts in third person. The subject must be a concrete name or noun (Python, Alice, Continuum) — never a pronoun like "I", "we", or a placeholder like "User".
+- Existing facts are listed below as "subject | predicate". When the text updates a fact about the same topic, reuse BOTH the subject and the predicate VERBATIM from that list (so the update supersedes the old fact instead of creating a parallel one).
 - The predicate must be a short verb phrase such as "uses for", "prefers", "deploys to".
 - Only extract what is stated or clearly implied. Do not invent.
 - If the text is only a question asking what is true, return empty lists for all fields.
+
+Existing facts: {subjects}
 
 Text: {text}
 
 JSON:"""
 
 QUESTION_RE = re.compile(
-    r"^\s*(?:what|when|where|which|who|whom|whose|how|why|is|are|was|were"
-    r"|do|does|did|can|could|would|should|will|has|have|had)\b[^?]*\?\s*$",
+    r"^\s*(?!(?:can|could|would|will)\s+(?:you\s+)?(?:please\s+)?"
+    r"(?:update|set|change|remember|note|add|remove|switch|move|make|write|save)\b)"
+    r"(?:"
+    r"(?:what|when|where|which|who|whom|whose|how|why)\b"
+    r"|(?:is|are|was|were|do|does|did|can|could|would|should|will|has|have|had)\b[^?]*\?"
+    r"|(?:tell|show|explain|remind|give|find)\s+(?:me\s+)?"
+    r"(?:what|when|where|which|who|how|why|if|whether|about)\b"
+    r")",
     re.I,
 )
 
@@ -37,6 +46,17 @@ def _parse_json(raw: str) -> dict:
     if start == -1 or end == -1:
         raise ValueError(f"no JSON object in LLM response: {raw!r}")
     return json.loads(cleaned[start : end + 1])
+
+
+def _same_topic(pa: str, pb: str) -> bool:
+    """Predicates are the same topic if identical or sharing a head verb
+    (uses vs uses for persistence layer), so updates still supersede."""
+    a, b = str(pa).lower().strip(), str(pb).lower().strip()
+    if a == b:
+        return True
+    ha = a.split(" ")[0].rstrip("s")
+    hb = b.split(" ")[0].rstrip("s")
+    return len(ha) > 1 and ha == hb
 
 
 class SemanticMemory:
@@ -58,7 +78,7 @@ class SemanticMemory:
                 "fact_ids": [],
                 "skipped": True,
             }
-        prompt = EXTRACT_PROMPT.format(text=text)
+        prompt = EXTRACT_PROMPT.format(text=text, subjects=self._known_subjects(user_id))
         for attempt in range(2):
             try:
                 data = _parse_json(self._chat(prompt, system=EXTRACT_SYSTEM))
@@ -98,6 +118,14 @@ class SemanticMemory:
             "fact_ids": fact_ids,
         }
 
+    def _known_subjects(self, user_id: str) -> str:
+        result = self.store.ro_query(
+            user_id,
+            "MATCH (f:Fact) WHERE f.valid_to IS NULL RETURN f.subject, f.predicate LIMIT 15",
+        )
+        pairs = [f"{r[0]} | {r[1]}" for r in result.result_set]
+        return ", ".join(pairs) if pairs else "(none yet)"
+
     def _upsert_entity(
         self, user_id: str, name: str, type_: str, turn_id: str | None = None
     ) -> None:
@@ -128,17 +156,22 @@ class SemanticMemory:
         existing = self.store.ro_query(
             user_id,
             """
-            MATCH (f:Fact {subject: $subject, predicate: $predicate})
+            MATCH (f:Fact {subject: $subject})
             WHERE f.value <> $value
             AND f.valid_to IS NULL
-            RETURN f.id
+            RETURN f.id, f.predicate
             """,
-            {"subject": fact["subject"], "predicate": fact["predicate"], "value": fact["value"]},
+            {"subject": fact["subject"], "value": fact["value"]},
         )
-        if existing.result_set:
+        conflicts = [
+            r[0]
+            for r in existing.result_set
+            if _same_topic(r[1], fact["predicate"])
+        ]
+        if conflicts:
             stored_id = fact.get("fact_id") or str(uuid.uuid4())
-            for row in existing.result_set:
-                stored_id = self.supersede(user_id, row[0], fact)
+            for old_id in conflicts:
+                stored_id = self.supersede(user_id, old_id, fact)
         else:
             fact_id = str(uuid.uuid4())
             result = self.store.query(
