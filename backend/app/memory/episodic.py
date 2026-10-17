@@ -58,7 +58,7 @@ class EpisodicMemory:
             MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(s:Session {id: $session_id})
                   -[:CONTAINS]->(t:Turn)
             RETURN t.role, t.content, t.ts
-            ORDER BY t.ts ASC
+            ORDER BY t.ts ASC, id(t) ASC
             """,
             {"user_id": user_id, "session_id": session_id},
         )

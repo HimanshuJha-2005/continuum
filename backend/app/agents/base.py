@@ -5,7 +5,7 @@ from app.llm import get_llm
 RECENT_TURNS = """
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
 RETURN t
-ORDER BY t.ts DESC
+ORDER BY t.ts DESC, id(t) DESC
 LIMIT $limit
 """
 
