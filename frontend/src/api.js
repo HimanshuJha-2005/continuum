@@ -6,7 +6,14 @@ export async function sendChat(userId, message, agent = "scribe") {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId, message, agent }),
   });
-  if (!res.ok) throw new Error(`chat failed: ${res.status}`);
+  if (!res.ok) {
+    let detail = `chat failed: ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch {}
+    throw new Error(detail);
+  }
   return res.json();
 }
 

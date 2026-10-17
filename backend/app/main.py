@@ -88,17 +88,23 @@ def chat(body: ChatRequest):
     try:
         if body.agent == "scout":
             scout = Scout(store)
-            findings = scout.act(body.user_id, body.message, trace=trace)
-            response = {"findings": findings}
+            result = scout.act(body.user_id, body.message, trace=trace)
+            response = {"findings": result}
         else:
             scribe = Scribe(store)
             answer = scribe.act(body.user_id, body.message, trace=trace)
             epi.add_turn(body.user_id, body.session_id, "assistant", answer)
             response = {"answer": answer}
-        extracted = sem.extract(body.user_id, body.message, turn_id=turn_id)
-        response["extracted"] = {"facts": len(extracted["facts"]), "entities": len(extracted["entities"])}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"agent failed: {e}")
+    try:
+        extracted = sem.extract(body.user_id, body.message, turn_id=turn_id)
+        response["extracted"] = {
+            "facts": len(extracted["facts"]),
+            "entities": len(extracted["entities"]),
+        }
+    except Exception as e:
+        response["extracted"] = {"error": str(e)[:200]}
     response["turn_id"] = turn_id
     response["trace"] = trace.to_dict()
     return response
