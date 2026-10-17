@@ -45,6 +45,8 @@ One FalkorDB instance, one graph per user (`user:{id}`) via multigraph topology.
 - **Temporal facts** — memory must update over time. Facts carry
   `valid_from`/`valid_to`, and a corrected fact `SUPERSEDES` the old one
   instead of overwriting it, so the trace can show how knowledge evolved.
+  A variable-length `SUPERSEDES*1..5` walk reconstructs the full chain for
+  "what did we use before X" questions.
 - **`DERIVED` from Turn to Fact** — every extracted fact points back to the
   message it came from. Explainability starts with provenance.
 - **Coordination lives in the graph** — `SharedState` with `WROTE`/`READ`

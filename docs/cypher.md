@@ -82,10 +82,14 @@ ON CREATE SET s.started_at = timestamp()
 MERGE (u)-[:HAS_SESSION]->(s)
 ```
 
-Append a turn to a session:
+Append a turn to a session — self-sufficient (MERGEs the user and session if
+missing, so live web chat never silently drops turns):
 
 ```cypher
-MATCH (s:Session {id: $session_id})
+MERGE (u:User {id: $user_id})
+MERGE (s:Session {id: $session_id})
+ON CREATE SET s.started_at = timestamp()
+MERGE (u)-[:HAS_SESSION]->(s)
 CREATE (t:Turn {id: $turn_id, role: $role, content: $content, ts: timestamp(), seq: $seq})
 CREATE (s)-[:CONTAINS]->(t)
 ```
@@ -147,6 +151,35 @@ ORDER BY f.confidence DESC
 LIMIT $limit
 ```
 
+Temporal history — variable-length walk across `SUPERSEDES` chains, anchored
+on any word-matched fact (active or superseded). Answers "what did we use
+before X" / "when did we switch":
+
+```cypher
+MATCH (f:Fact)
+WHERE any(w IN $words WHERE toLower(f.subject) CONTAINS w
+          OR toLower(f.predicate) CONTAINS w
+          OR toLower(f.value) CONTAINS w)
+OPTIONAL MATCH (newer:Fact)-[:SUPERSEDES*1..5]->(f)
+WITH DISTINCT COALESCE(newer, f) AS root
+OPTIONAL MATCH path = (root)-[:SUPERSEDES*1..5]->(old:Fact)
+RETURN root, [n IN nodes(path) | n.value] AS evolution
+LIMIT 6
+```
+
+Entity context — facts reached through `Turn-[:MENTIONS]->Entity-[:RELATES]->Fact`,
+so recall follows the graph instead of only scanning Fact properties:
+
+```cypher
+MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
+MATCH (t)-[:MENTIONS]->(e:Entity)
+MATCH (e)-[:RELATES]->(f:Fact)
+WHERE f.valid_to IS NULL
+RETURN DISTINCT f
+ORDER BY f.confidence DESC
+LIMIT $limit
+```
+
 Fallback when keyword match comes up thin — newest active facts regardless of
 keywords (the model judges relevance):
 
@@ -187,15 +220,18 @@ MATCH (e:Entity {name: $name})
 MERGE (t)-[:MENTIONS]->(e)
 ```
 
-Conflict check before upsert — every *active* fact with the same subject and
-predicate but a different value gets superseded (invariant: at most one active
-fact per subject/predicate):
+Conflict check before upsert — every *active* fact with the same subject gets
+candidate status (invariant: at most one active fact per subject/topic). The
+Cypher is deliberately loose (same subject, any predicate, different value);
+Python then filters candidates by `_same_topic` — same predicate verbatim, or
+same head verb (first verb-ish token, trailing-s stripped, >= 4 chars). This
+survives LLM phrasing drift ("uses for"/"uses" both head-verb to "use"):
 
 ```cypher
-MATCH (f:Fact {subject: $subject, predicate: $predicate})
+MATCH (f:Fact {subject: $subject})
 WHERE f.value <> $value
 AND f.valid_to IS NULL
-RETURN f.id
+RETURN f.id, f.predicate, f.value
 ```
 
 Upsert a fact (same subject/predicate/value merges; confidence refreshed,

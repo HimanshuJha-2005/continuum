@@ -56,11 +56,24 @@ this arc — each step lights up a different part of the memory graph:
 2. **Change your mind** — "Update: TypeScript is preferred for mobile apps now."
    The old fact gains a `SUPERSEDES` edge and leaves retrieval; the answer
    cites only the current fact. The graph shows *why* the answer changed.
-3. **Cold handoff** — switch the mode toggle to **Scout** and ask
+3. **Rewind** — "What did I prefer before TypeScript" (no `?` needed). A
+   variable-length `SUPERSEDES` walk reconstructs the chain; the trace panel
+   labels these steps **temporal** and the answer narrates the history.
+4. **Cold handoff** — switch the mode toggle to **Scout** and ask
    "What stack did we pick?" Scout returns a research report and writes a
    handoff; switch back to **Scribe** and ask "What stack did we settle on
    for the frontend?" — Scribe picks the pending handoff up (irrelevant
    questions don't get it), and the trace panel lists `Scout → Scribe`.
+5. **Self-initiated research** — as Scribe, ask something the memory
+   *doesn't* know (e.g. "What pizza place do we like best"). Scribe
+   autonomously consults Scout in the same turn, and the meta line reads
+   "consulted Scout". A statement ("I like Margherita pizza") or a question
+   the memory *can* answer does not trigger research.
+6. **Full brain + sessions** — the "explore full brain" toggle renders the
+   user's entire graph (browse-only); "new session" starts a clean chat
+   session, and the "open session…" dropdown replays any past session's
+   turns. Both work for brand-new users — turns are self-sufficient in the
+   graph, nothing is silently dropped.
 
 ## Graph model
 
@@ -93,7 +106,9 @@ graph LR
 |---|---|
 | `POST /chat` | Ask Scribe (answer) or Scout (research); returns the memory trace |
 | `GET /memory?user_id=` | Sessions, facts, preferences, procedures, shared state |
+| `GET /memory/full?user_id=` | The user's entire graph (cytoscape elements, capped) |
 | `GET /memory/subgraph?user_id=&node_ids=` | Cytoscape elements for traced nodes + neighbors |
+| `GET /session_turns?user_id=&session_id=` | One session's turns in order (session replay) |
 | `GET /agents?user_id=` | Agents and their handoff history |
 | `GET /health` | Backend + FalkorDB status |
 
@@ -117,18 +132,21 @@ tenant can starve another's query planning. Run it yourself:
 
 ## Tests
 
-Seven suites, one dedicated test user each — memory layers, the agent loop,
-handoffs, cross-user isolation, and restart persistence. FalkorDB must be
+Eight suites — memory layers, the agent loop, handoffs, cross-user
+isolation, restart persistence, and an in-process API integration test
+(`test_api`, exercises the real FastAPI `/chat` wiring). FalkorDB must be
 running (`docker compose up --build`):
 
 ```bash
-for t in episodic procedural semantic agent handoff scout_scribe restart; do
+for t in episodic procedural semantic agent handoff scout_scribe api restart; do
   python scripts/test_$t.py
 done
 ```
 
 `test_restart` deliberately restarts the FalkorDB container and re-verifies
-that everything is still there.
+that everything is still there. Note: it re-seeds the demo users (reset), so
+**run the suites first, then `python seed/seed_data.py`, before a live
+demo** — the suites leave the demo graph in a test state, not a show state.
 
 ## Cypher queries the product depends on
 
