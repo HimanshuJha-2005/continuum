@@ -19,6 +19,13 @@ ORDER BY f.confidence DESC
 LIMIT $limit
 """
 
+RECENT_FACTS = """
+MATCH (f:Fact)
+RETURN f
+ORDER BY f.last_seen DESC, f.confidence DESC
+LIMIT $limit
+"""
+
 PREFERENCES = """
 MATCH (u:User {id: $user_id})-[:PREFERS]->(p:Preference)
 RETURN p
@@ -27,8 +34,10 @@ RETURN p
 SYSTEM_TEMPLATE = """You are {name}, a persistent-memory assistant inside Continuum.
 You answer ONLY from the memory context provided: recent conversation turns,
 facts, and preferences pulled from your graph memory.
-If the context lacks the answer, say the memory does not contain it yet.
-Keep answers short and direct. When a fact backs your answer, cite it as [fact: subject predicate value]."""
+If a fact or preference in the context answers the question, state it directly
+and confidently, citing it as [fact: subject predicate value].
+Only when nothing in the context relates to the question, say the memory does
+not contain it yet. Keep answers short and direct."""
 
 
 class Agent:
@@ -57,12 +66,27 @@ class Agent:
         result = self.store.ro_query(user_id, FACT_MATCH, {"words": words, "limit": 8})
         if trace:
             trace.add(FACT_MATCH, {"words": words, "limit": 8}, result, "semantic")
-        facts = []
-        for row in result.result_set:
-            node = row[0]
-            props = dict(node.properties)
-            props["node_id"] = node.id
-            facts.append(props)
+        facts: list[dict] = []
+        seen: set[int] = set()
+
+        def collect(res) -> None:
+            for row in res.result_set:
+                node = row[0]
+                if node.id in seen:
+                    continue
+                seen.add(node.id)
+                props = dict(node.properties)
+                props["node_id"] = node.id
+                facts.append(props)
+
+        collect(result)
+        if len(facts) < 3:
+            fallback = self.store.ro_query(
+                user_id, RECENT_FACTS, {"limit": 8 - len(facts)}
+            )
+            if trace:
+                trace.add(RECENT_FACTS, {"limit": 8 - len(facts)}, fallback, "semantic")
+            collect(fallback)
 
         result = self.store.ro_query(user_id, PREFERENCES, {"user_id": user_id})
         if trace:
