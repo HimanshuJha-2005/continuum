@@ -14,9 +14,17 @@ CREATE (a)-[:HANDOFF_TO {
 LATEST_HANDOFF_QUERY = """
 MATCH (src:Agent)-[h:HANDOFF_TO]->(dst:Agent {id: $agent_id})
 WHERE h.status = 'pending'
+AND h.ts > timestamp() - 3600000
 RETURN src.id, h.summary, h.ts, h.id
 ORDER BY h.ts DESC
 LIMIT 1
+"""
+
+EXPIRE_STALE = """
+MATCH ()-[h:HANDOFF_TO]->()
+WHERE h.status = 'pending'
+AND h.ts <= timestamp() - 3600000
+SET h.status = 'expired'
 """
 
 MARK_CONSUMED = """
@@ -52,6 +60,10 @@ class Handoff:
 
     def __init__(self, store):
         self.store = store
+
+    def expire_stale(self, user_id: str) -> None:
+        """Mark pending handoffs older than 1 hour as expired."""
+        self.store.query(user_id, EXPIRE_STALE, {})
 
     def create(self, user_id: str, from_id: str, to_id: str, summary: str) -> str:
         handoff_id = str(uuid.uuid4())

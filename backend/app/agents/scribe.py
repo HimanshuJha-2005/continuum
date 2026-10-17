@@ -14,6 +14,7 @@ class Scribe(Agent):
 
     def _pickup(self, user_id: str, query: str) -> str:
         handoffs = Handoff(self.store)
+        handoffs.expire_stale(user_id)
         handoff = handoffs.latest_for(user_id, self.agent_id)
         if not handoff:
             return ""
