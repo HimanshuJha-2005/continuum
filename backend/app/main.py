@@ -45,11 +45,16 @@ def _elements(result) -> dict:
     edges: dict[int, dict] = {}
 
     def add_node(node) -> None:
+        props = dict(node.properties)
+        content = props.get("content")
+        if isinstance(content, str) and len(content) > 300:
+            props["content"] = content[:300] + "…"
         nodes[node.id] = {
             "data": {
                 "id": node.id,
                 "label": _node_label(node),
                 "type": (node.labels or ["?"])[0],
+                "props": props,
             }
         }
 
@@ -95,7 +100,10 @@ def chat(body: ChatRequest):
         extraction = {
             "facts": len(extracted["facts"]),
             "entities": len(extracted["entities"]),
+            "preferences": len(extracted.get("preferences", [])),
         }
+        if extracted.get("skipped"):
+            extraction["skipped"] = True
     except Exception as e:
         extraction = {"error": str(e)[:200]}
     try:
