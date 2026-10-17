@@ -26,11 +26,15 @@ class EpisodicMemory:
         self.store.query(
             user_id,
             """
-            MATCH (s:Session {id: $session_id})
+            MERGE (u:User {id: $user_id})
+            MERGE (s:Session {id: $session_id})
+            ON CREATE SET s.started_at = timestamp()
+            MERGE (u)-[:HAS_SESSION]->(s)
             CREATE (t:Turn {id: $turn_id, role: $role, content: $content, ts: timestamp(), seq: $seq})
             CREATE (s)-[:CONTAINS]->(t)
             """,
             {
+                "user_id": user_id,
                 "session_id": session_id,
                 "turn_id": turn_id,
                 "role": role,
