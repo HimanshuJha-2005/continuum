@@ -63,7 +63,7 @@ Append a turn to a session:
 
 ```cypher
 MATCH (s:Session {id: $session_id})
-CREATE (t:Turn {id: $turn_id, role: $role, content: $content, ts: timestamp()})
+CREATE (t:Turn {id: $turn_id, role: $role, content: $content, ts: timestamp(), seq: $seq})
 CREATE (s)-[:CONTAINS]->(t)
 ```
 
@@ -76,13 +76,14 @@ ORDER BY s.started_at DESC
 LIMIT $limit
 ```
 
-Read a session's turns in order (tiebroken by internal id so same-millisecond
-turns stay stable):
+Read a session's turns in order (tiebroken by a nanosecond creation `seq`,
+because FalkorDB recycles internal ids after deletes and `id()` can't order
+same-millisecond turns):
 
 ```cypher
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(s:Session {id: $session_id})-[:CONTAINS]->(t:Turn)
 RETURN t.role, t.content, t.ts
-ORDER BY t.ts ASC, id(t) ASC
+ORDER BY t.ts ASC, t.seq ASC
 ```
 
 ## Agent retrieval
@@ -92,7 +93,7 @@ Recent turns for the prompt context (newest first):
 ```cypher
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
 RETURN t
-ORDER BY t.ts DESC, id(t) DESC
+ORDER BY t.ts DESC, t.seq DESC
 LIMIT $limit
 ```
 
