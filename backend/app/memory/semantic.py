@@ -56,7 +56,9 @@ class SemanticMemory:
                 user_id,
                 {
                     "subject": f.get("subject", ""),
-                    "predicate": f.get("predicate", ""),
+                    "predicate": re.sub(
+                        r"^(is|are|was|were)\s+", "", f.get("predicate", "")
+                    ).strip(),
                     "value": f.get("value", ""),
                     "confidence": float(f.get("confidence", 0.5)),
                 },
@@ -132,9 +134,10 @@ class SemanticMemory:
             user_id,
             """
             MATCH (f:Fact)
-            WHERE toLower(f.subject) CONTAINS toLower($q)
-               OR toLower(f.predicate) CONTAINS toLower($q)
-               OR toLower(f.value) CONTAINS toLower($q)
+            WHERE (toLower(f.subject) CONTAINS toLower($q)
+                OR toLower(f.predicate) CONTAINS toLower($q)
+                OR toLower(f.value) CONTAINS toLower($q))
+            AND f.valid_to IS NULL
             RETURN f
             ORDER BY f.confidence DESC
             LIMIT $limit

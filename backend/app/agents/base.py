@@ -14,6 +14,7 @@ MATCH (f:Fact)
 WHERE any(w IN $words WHERE toLower(f.subject) CONTAINS w
           OR toLower(f.predicate) CONTAINS w
           OR toLower(f.value) CONTAINS w)
+AND f.valid_to IS NULL
 RETURN f
 ORDER BY f.confidence DESC
 LIMIT $limit
@@ -21,6 +22,7 @@ LIMIT $limit
 
 RECENT_FACTS = """
 MATCH (f:Fact)
+WHERE f.valid_to IS NULL
 RETURN f
 ORDER BY f.last_seen DESC, f.confidence DESC
 LIMIT $limit
@@ -33,9 +35,12 @@ RETURN p
 
 SYSTEM_TEMPLATE = """You are {name}, a persistent-memory assistant inside Continuum.
 You answer ONLY from the memory context provided: recent conversation turns,
-facts, and preferences pulled from your graph memory.
+facts, and preferences pulled from your graph memory. The context already
+includes facts captured from the current message.
 If a fact or preference in the context answers the question, state it directly
 and confidently, citing it as [fact: subject predicate value].
+If the message states an update (e.g. "we now prefer X"), confirm what the
+memory currently holds about it, citing the matching fact.
 Only when nothing in the context relates to the question, say the memory does
 not contain it yet. Keep answers short and direct."""
 
