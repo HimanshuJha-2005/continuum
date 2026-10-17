@@ -21,6 +21,8 @@ fetched them, rendered live as a subgraph beside the chat.
 
 ## Quickstart
 
+Prerequisites: Docker Desktop, Python 3.10+, Node 18+.
+
 ```bash
 # 1. Backend deps (for scripts and tests)
 pip install -r backend/requirements.txt
