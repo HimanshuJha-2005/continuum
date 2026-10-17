@@ -12,6 +12,18 @@ RETURN e, other
 LIMIT 30
 """
 
+# Zero-seed fallback: expand from entities mentioned in the user's recent turns.
+# When keyword retrieval matched no facts (matched == 0), the seed_ids path is
+# empty, so we seed from recent MENTIONS edges instead of skipping expansion.
+RECENT_TURN_ENTITIES = """
+MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
+MATCH (t)-[:MENTIONS]->(e:Entity)
+MATCH (e)-[:RELATES]->(f:Fact)
+WHERE f.valid_to IS NULL
+RETURN e, f
+LIMIT 30
+"""
+
 
 class Scout(Agent):
     """Researcher: multi-hop exploration of the graph, publishes a research
@@ -32,6 +44,18 @@ class Scout(Agent):
             )
             if trace:
                 trace.add(ENTITY_EXPANSION, {"seed_ids": seed_ids}, result, "semantic")
+            for row in result.result_set:
+                e_node, f_node = row[0], row[1]
+                entities[e_node.properties.get("name", "")] = e_node.properties.get(
+                    "type", ""
+                )
+                related.append(dict(f_node.properties))
+        else:
+            result = self.store.ro_query(
+                user_id, RECENT_TURN_ENTITIES, {"user_id": user_id}
+            )
+            if trace:
+                trace.add(RECENT_TURN_ENTITIES, {"user_id": user_id}, result, "semantic")
             for row in result.result_set:
                 e_node, f_node = row[0], row[1]
                 entities[e_node.properties.get("name", "")] = e_node.properties.get(
