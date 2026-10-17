@@ -10,6 +10,8 @@ EXTRACT_PROMPT = """Extract entities and facts from the text below.
 Rules:
 - entities: up to 5 objects with "name" and "type" (type is a short noun: person, language, project, place, org, etc.)
 - facts: up to 5 objects with "subject", "predicate", "value", "confidence" (confidence between 0.0 and 1.0)
+- Write facts in third person. The subject must be a concrete name or noun (Python, Alice, Continuum) — never a pronoun like "I", "we", or a placeholder like "User".
+- The predicate must be a short verb phrase such as "uses for", "prefers", "deploys to".
 - Only extract what is stated or clearly implied. Do not invent.
 
 Text: {text}
@@ -79,26 +81,39 @@ class SemanticMemory:
     def upsert_fact(
         self, user_id: str, fact: dict, turn_id: str | None = None
     ) -> str:
-        fact_id = str(uuid.uuid4())
-        result = self.store.query(
+        existing = self.store.ro_query(
             user_id,
             """
-            MERGE (subj:Entity {name: $subject})
-            MERGE (f:Fact {subject: $subject, predicate: $predicate, value: $value})
-            ON CREATE SET f.id = $fact_id, f.confidence = $confidence, f.valid_from = timestamp()
-            ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence
-            MERGE (subj)-[:RELATES {predicate: $predicate}]->(f)
+            MATCH (f:Fact {subject: $subject, predicate: $predicate})
+            WHERE f.value <> $value
             RETURN f.id
+            LIMIT 1
             """,
-            {
-                "subject": fact["subject"],
-                "predicate": fact["predicate"],
-                "value": fact["value"],
-                "confidence": fact.get("confidence", 0.5),
-                "fact_id": fact_id,
-            },
+            {"subject": fact["subject"], "predicate": fact["predicate"], "value": fact["value"]},
         )
-        stored_id = result.result_set[0][0]
+        if existing.result_set:
+            stored_id = self.supersede(user_id, existing.result_set[0][0], fact)
+        else:
+            fact_id = str(uuid.uuid4())
+            result = self.store.query(
+                user_id,
+                """
+                MERGE (subj:Entity {name: $subject})
+                MERGE (f:Fact {subject: $subject, predicate: $predicate, value: $value})
+                ON CREATE SET f.id = $fact_id, f.confidence = $confidence, f.valid_from = timestamp()
+                ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence
+                MERGE (subj)-[:RELATES {predicate: $predicate}]->(f)
+                RETURN f.id
+                """,
+                {
+                    "subject": fact["subject"],
+                    "predicate": fact["predicate"],
+                    "value": fact["value"],
+                    "confidence": fact.get("confidence", 0.5),
+                    "fact_id": fact_id,
+                },
+            )
+            stored_id = result.result_set[0][0]
         if turn_id:
             self.store.query(
                 user_id,
