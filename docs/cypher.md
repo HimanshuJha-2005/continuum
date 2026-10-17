@@ -76,15 +76,70 @@ ORDER BY s.started_at DESC
 LIMIT $limit
 ```
 
-Read a session's turns in order:
+Read a session's turns in order (tiebroken by internal id so same-millisecond
+turns stay stable):
 
 ```cypher
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(s:Session {id: $session_id})-[:CONTAINS]->(t:Turn)
 RETURN t.role, t.content, t.ts
-ORDER BY t.ts ASC
+ORDER BY t.ts ASC, id(t) ASC
+```
+
+## Agent retrieval
+
+Recent turns for the prompt context (newest first):
+
+```cypher
+MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
+RETURN t
+ORDER BY t.ts DESC, id(t) DESC
+LIMIT $limit
+```
+
+Keyword fact match for the question:
+
+```cypher
+MATCH (f:Fact)
+WHERE any(w IN $words WHERE toLower(f.subject) CONTAINS w
+          OR toLower(f.predicate) CONTAINS w
+          OR toLower(f.value) CONTAINS w)
+RETURN f
+ORDER BY f.confidence DESC
+LIMIT $limit
+```
+
+Fallback when keyword match comes up thin — newest facts regardless of
+keywords (the model judges relevance):
+
+```cypher
+MATCH (f:Fact)
+RETURN f
+ORDER BY f.last_seen DESC, f.confidence DESC
+LIMIT $limit
+```
+
+Scout's entity expansion — everything linked to the entities behind matched
+facts:
+
+```cypher
+MATCH (e:Entity)-[:RELATES]->(f:Fact)
+WHERE f.id IN $seed_ids
+MATCH (e)-[:RELATES]->(other:Fact)
+RETURN e, other
+LIMIT 30
 ```
 
 ## Semantic
+
+Conflict check before upsert (same subject + predicate, different value →
+supersede instead of parallel fact):
+
+```cypher
+MATCH (f:Fact {subject: $subject, predicate: $predicate})
+WHERE f.value <> $value
+RETURN f.id
+LIMIT 1
+```
 
 Upsert a fact (same subject/predicate/value merges; confidence refreshed, `last_seen` bumped):
 
