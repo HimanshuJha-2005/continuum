@@ -22,6 +22,24 @@ const STYLE = [
     },
   },
   { selector: 'node[type = "Fact"]', style: { "background-color": "#2563eb" } },
+  {
+    selector: 'node[type = "Fact"][?valid_to]',
+    style: {
+      "background-color": "#ffffff",
+      "border-color": "#dc2626",
+      color: "#b91c1c",
+    },
+  },
+  {
+    selector: 'edge[type = "SUPERSEDES"]',
+    style: {
+      width: 2,
+      "line-style": "dashed",
+      "line-color": "#dc2626",
+      "target-arrow-color": "#dc2626",
+      color: "#b91c1c",
+    },
+  },
   { selector: 'node[type = "Turn"]', style: { "background-color": "#64748b" } },
   {
     selector: 'node[type = "Preference"]',
@@ -55,7 +73,7 @@ const STYLE = [
   },
 ];
 
-export default function TracePanel({ steps, elements, stats, handoffs }) {
+export default function TracePanel({ steps, elements, stats, handoffs, brainMode, onToggleBrain }) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
   const [selected, setSelected] = useState(null);
@@ -104,6 +122,13 @@ export default function TracePanel({ steps, elements, stats, handoffs }) {
           <span className="turn">turn</span>
           <span className="pref">preference</span>
           <span className="entity">entity</span>
+          <button
+            type="button"
+            className={`brain-toggle ${brainMode ? "active" : ""}`}
+            onClick={onToggleBrain}
+          >
+            {brainMode ? "answer graph" : "explore full brain"}
+          </button>
         </span>
       </div>
       {stats && (
@@ -144,7 +169,9 @@ export default function TracePanel({ steps, elements, stats, handoffs }) {
         <div className="canvas" ref={containerRef} />
         {!hasGraph && (
           <div className="canvas-empty">
-            The nodes and edges this answer touched will render here.
+            {brainMode
+              ? "This user's full memory graph will render here."
+              : "The nodes and edges this answer touched will render here."}
           </div>
         )}
       </div>
@@ -193,7 +220,11 @@ export default function TracePanel({ steps, elements, stats, handoffs }) {
         </div>
       )}
       <div className="steps">
-        <p className="steps-title">Queries that fetched this answer</p>
+        <p className="steps-title">
+          {brainMode
+            ? "Last answer's queries (full brain is browse-only)"
+            : "Queries that fetched this answer"}
+        </p>
         {steps.length === 0 && (
           <p className="canvas-empty" style={{ position: "static" }}>
             None yet.

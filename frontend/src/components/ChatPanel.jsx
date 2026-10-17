@@ -9,7 +9,16 @@ const SUGGESTIONS = {
   bob: ["What language do I prefer?", "Where do I deploy?"],
 };
 
-export default function ChatPanel({ userId, messages, busy, onSend }) {
+export default function ChatPanel({
+  userId,
+  messages,
+  busy,
+  onSend,
+  sessionId,
+  sessions,
+  onNewSession,
+  onOpenSession,
+}) {
   const [text, setText] = useState("");
   const [agent, setAgent] = useState("scribe");
   const bottomRef = useRef(null);
@@ -51,6 +60,28 @@ export default function ChatPanel({ userId, messages, busy, onSend }) {
             Scout
           </button>
         </span>
+      </div>
+      <div className="session-bar">
+        <span className="session-label">
+          session <code>{sessionId}</code>
+        </span>
+        <button type="button" className="session-btn" onClick={onNewSession}>
+          new session
+        </button>
+        {sessions.length > 0 && (
+          <select
+            className="session-select"
+            value=""
+            onChange={(e) => e.target.value && onOpenSession(e.target.value)}
+          >
+            <option value="">open session…</option>
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.id}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       <div className="messages">
         {messages.length === 0 && (

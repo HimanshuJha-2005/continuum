@@ -1,7 +1,15 @@
 import React, { useCallback, useEffect, useState } from "react";
 import ChatPanel from "./components/ChatPanel.jsx";
 import TracePanel from "./components/TracePanel.jsx";
-import { getAgents, getHealth, getMemory, getSubgraph, sendChat } from "./api.js";
+import {
+  getAgents,
+  getFullGraph,
+  getHealth,
+  getMemory,
+  getSubgraph,
+  getSessionTurns,
+  sendChat,
+} from "./api.js";
 
 function now() {
   return new Date().toLocaleTimeString([], {
@@ -12,6 +20,7 @@ function now() {
 
 export default function App() {
   const [userId, setUserId] = useState("alice");
+  const [sessionId, setSessionId] = useState("web");
   const [messages, setMessages] = useState([]);
   const [steps, setSteps] = useState([]);
   const [elements, setElements] = useState({ nodes: [], edges: [] });
@@ -19,6 +28,8 @@ export default function App() {
   const [health, setHealth] = useState("down");
   const [stats, setStats] = useState(null);
   const [handoffs, setHandoffs] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [brainMode, setBrainMode] = useState(false);
 
   const loadStats = useCallback(async () => {
     try {
@@ -31,9 +42,11 @@ export default function App() {
         state: Object.keys(m.shared_state).length,
         handoffs: a.handoffs.length,
       });
+      setSessions(m.sessions);
       setHandoffs(a.handoffs.slice(0, 3));
     } catch {
       setStats(null);
+      setSessions([]);
       setHandoffs([]);
     }
   }, [userId]);
@@ -66,10 +79,13 @@ export default function App() {
       setBusy(true);
       try {
         const started = Date.now();
-        const res = await sendChat(userId, message, agent);
+        const res = await sendChat(userId, message, agent, sessionId);
         const elapsed = ((Date.now() - started) / 1000).toFixed(1);
         const reply = res.answer ?? res.findings ?? "(no response)";
         const meta = [];
+        if (res.coordinated) {
+          meta.push("consulted Scout");
+        }
         if (res.extracted && res.extracted.facts !== undefined && !res.extracted.skipped) {
           meta.push(`${res.extracted.facts} facts extracted`);
           if (res.extracted.preferences) {
@@ -91,10 +107,10 @@ export default function App() {
         const ids = [
           ...new Set(res.trace?.steps?.flatMap((s) => s.node_ids) ?? []),
         ];
-        if (ids.length) {
+        if (ids.length && !brainMode) {
           const sg = await getSubgraph(userId, ids);
           setElements({ nodes: sg.nodes, edges: sg.edges });
-        } else {
+        } else if (!brainMode) {
           setElements({ nodes: [], edges: [] });
         }
         loadStats();
@@ -107,15 +123,60 @@ export default function App() {
         setBusy(false);
       }
     },
-    [userId, loadStats]
+    [userId, sessionId, brainMode, loadStats]
   );
 
   const switchUser = (id) => {
     setUserId(id);
+    setSessionId("web");
+    setMessages([]);
+    setSteps([]);
+    setElements({ nodes: [], edges: [] });
+    setBrainMode(false);
+  };
+
+  const newSession = () => {
+    setSessionId(`s-${Date.now().toString(36)}`);
     setMessages([]);
     setSteps([]);
     setElements({ nodes: [], edges: [] });
   };
+
+  const openSession = async (id) => {
+    setSessionId(id);
+    setSteps([]);
+    setElements({ nodes: [], edges: [] });
+    try {
+      const res = await getSessionTurns(userId, id);
+      setMessages(
+        res.turns.map((t) => ({
+          role: t.role,
+          text: t.content,
+          time: new Date(t.ts).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }))
+      );
+    } catch {
+      setMessages([]);
+    }
+  };
+
+  const toggleBrain = useCallback(async () => {
+    if (brainMode) {
+      setBrainMode(false);
+      setElements({ nodes: [], edges: [] });
+      return;
+    }
+    try {
+      const full = await getFullGraph(userId);
+      setElements({ nodes: full.nodes, edges: full.edges });
+      setBrainMode(true);
+    } catch {
+      /* keep current view */
+    }
+  }, [brainMode, userId]);
 
   return (
     <div className="app">
@@ -159,8 +220,19 @@ export default function App() {
           messages={messages}
           busy={busy}
           onSend={handleSend}
+          sessionId={sessionId}
+          sessions={sessions}
+          onNewSession={newSession}
+          onOpenSession={openSession}
         />
-        <TracePanel steps={steps} elements={elements} stats={stats} handoffs={handoffs} />
+        <TracePanel
+          steps={steps}
+          elements={elements}
+          stats={stats}
+          handoffs={handoffs}
+          brainMode={brainMode}
+          onToggleBrain={toggleBrain}
+        />
       </div>
     </div>
   );

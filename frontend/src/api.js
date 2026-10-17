@@ -13,11 +13,11 @@ async function request(path, options) {
   return res.json();
 }
 
-export function sendChat(userId, message, agent = "scribe") {
+export function sendChat(userId, message, agent = "scribe", sessionId = "web") {
   return request("/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId, message, agent }),
+    body: JSON.stringify({ user_id: userId, message, agent, session_id: sessionId }),
   });
 }
 
@@ -30,6 +30,16 @@ export function getSubgraph(userId, nodeIds) {
 
 export function getMemory(userId) {
   return request(`/memory?user_id=${encodeURIComponent(userId)}`);
+}
+
+export function getFullGraph(userId) {
+  return request(`/memory/full?user_id=${encodeURIComponent(userId)}`);
+}
+
+export function getSessionTurns(userId, sessionId) {
+  return request(
+    `/session_turns?user_id=${encodeURIComponent(userId)}&session_id=${encodeURIComponent(sessionId)}`
+  );
 }
 
 export function getAgents(userId) {

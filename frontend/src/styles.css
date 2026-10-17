@@ -105,6 +105,74 @@ body {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.07);
 }
 
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.session-label code {
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.session-btn {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 7px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+}
+
+.session-btn:hover {
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+
+.session-select {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 7px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  color: #475569;
+}
+
+.brain-toggle {
+  margin-left: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.brain-toggle:hover {
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+
+.brain-toggle.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #ffffff;
+}
+
 .panels {
   display: flex;
   flex: 1;
@@ -580,6 +648,11 @@ body {
 .badge.procedural {
   background: #ecfdf5;
   color: #047857;
+}
+
+.badge.temporal {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .step pre {
