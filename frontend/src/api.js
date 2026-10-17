@@ -1,13 +1,9 @@
 const BASE = "";
 
-export async function sendChat(userId, message, agent = "scribe") {
-  const res = await fetch(`${BASE}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId, message, agent }),
-  });
+async function request(path, options) {
+  const res = await fetch(`${BASE}${path}`, options);
   if (!res.ok) {
-    let detail = `chat failed: ${res.status}`;
+    let detail = `request failed: ${res.status}`;
     try {
       const body = await res.json();
       if (body.detail) detail = body.detail;
@@ -17,21 +13,29 @@ export async function sendChat(userId, message, agent = "scribe") {
   return res.json();
 }
 
-export async function getSubgraph(userId, nodeIds) {
-  const res = await fetch(
-    `${BASE}/memory/subgraph?user_id=${encodeURIComponent(userId)}&node_ids=${nodeIds.join(",")}`
+export function sendChat(userId, message, agent = "scribe") {
+  return request("/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, message, agent }),
+  });
+}
+
+export function getSubgraph(userId, nodeIds) {
+  const ids = nodeIds.join(",");
+  return request(
+    `/memory/subgraph?user_id=${encodeURIComponent(userId)}&node_ids=${ids}`
   );
-  if (!res.ok) throw new Error(`subgraph failed: ${res.status}`);
-  return res.json();
 }
 
-export async function getAgents(userId) {
-  const res = await fetch(`${BASE}/agents?user_id=${encodeURIComponent(userId)}`);
-  if (!res.ok) throw new Error(`agents failed: ${res.status}`);
-  return res.json();
+export function getMemory(userId) {
+  return request(`/memory?user_id=${encodeURIComponent(userId)}`);
 }
 
-export async function getHealth() {
-  const res = await fetch(`${BASE}/health`);
-  return res.json();
+export function getAgents(userId) {
+  return request(`/agents?user_id=${encodeURIComponent(userId)}`);
+}
+
+export function getHealth() {
+  return request("/health");
 }

@@ -7,17 +7,22 @@ const STYLE = [
     style: {
       label: "data(label)",
       "font-size": 10,
-      color: "#111827",
+      "font-weight": 500,
+      "font-family": "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+      color: "#334155",
       "text-valign": "bottom",
-      "text-margin-y": 4,
-      width: 22,
-      height: 22,
-      "background-color": "#9ca3af",
-      "text-outline-width": 0,
+      "text-margin-y": 6,
+      "text-outline-width": 3,
+      "text-outline-color": "#f8fafc",
+      width: 24,
+      height: 24,
+      "border-width": 2,
+      "border-color": "#ffffff",
+      "background-color": "#94a3b8",
     },
   },
   { selector: 'node[type = "Fact"]', style: { "background-color": "#2563eb" } },
-  { selector: 'node[type = "Turn"]', style: { "background-color": "#6b7280" } },
+  { selector: 'node[type = "Turn"]', style: { "background-color": "#64748b" } },
   {
     selector: 'node[type = "Preference"]',
     style: { "background-color": "#059669" },
@@ -25,25 +30,35 @@ const STYLE = [
   { selector: 'node[type = "Entity"]', style: { "background-color": "#d97706" } },
   { selector: 'node[type = "Session"]', style: { "background-color": "#7c3aed" } },
   { selector: 'node[type = "User"]', style: { "background-color": "#111827" } },
+  { selector: 'node[type = "Agent"]', style: { "background-color": "#4f46e5" } },
+  {
+    selector: "node:selected",
+    style: { "border-width": 3, "border-color": "#4f46e5" },
+  },
   {
     selector: "edge",
     style: {
       width: 1.5,
-      "line-color": "#c5cad3",
-      "target-arrow-color": "#c5cad3",
+      "line-color": "#cbd5e1",
+      "target-arrow-color": "#cbd5e1",
       "target-arrow-shape": "triangle",
+      "arrow-scale": 0.8,
       "curve-style": "bezier",
       label: "data(type)",
       "font-size": 8,
-      color: "#9ca3af",
+      "font-weight": 500,
+      color: "#94a3b8",
+      "text-outline-width": 2,
+      "text-outline-color": "#f8fafc",
       "text-rotation": "autorotate",
     },
   },
 ];
 
-export default function TracePanel({ steps, elements }) {
+export default function TracePanel({ steps, elements, stats }) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
+  const hasGraph = elements.nodes.length > 0;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -52,10 +67,13 @@ export default function TracePanel({ steps, elements }) {
       container: containerRef.current,
       elements: [...elements.nodes, ...elements.edges],
       style: STYLE,
-      layout: { name: "cose", animate: false, padding: 30 },
-      userZooming: true,
-      userPanning: true,
-      wheelSensitivity: 0.2,
+      layout: {
+        name: "cose",
+        animate: false,
+        padding: 32,
+        idealEdgeLength: 70,
+        nodeRepulsion: 4500,
+      },
     });
     cyRef.current = cy;
     return () => cy.destroy();
@@ -64,7 +82,14 @@ export default function TracePanel({ steps, elements }) {
   return (
     <section className="panel trace-panel">
       <div className="panel-head">
-        <span>Memory trace</span>
+        <span>
+          Memory trace
+          <span className="sub">
+            {hasGraph
+              ? `${elements.nodes.length} nodes · ${elements.edges.length} edges`
+              : "live subgraph"}
+          </span>
+        </span>
         <span className="legend">
           <span className="fact">fact</span>
           <span className="turn">turn</span>
@@ -72,16 +97,48 @@ export default function TracePanel({ steps, elements }) {
           <span className="entity">entity</span>
         </span>
       </div>
-      <div className="canvas" ref={containerRef} />
+      {stats && (
+        <div className="stats">
+          <span className="stat">
+            <b>{stats.sessions}</b> sessions
+          </span>
+          <span className="stat">
+            <b>{stats.facts}</b> facts
+          </span>
+          <span className="stat">
+            <b>{stats.preferences}</b> preferences
+          </span>
+          <span className="stat">
+            <b>{stats.procedures}</b> procedures
+          </span>
+          <span className="stat">
+            <b>{stats.state}</b> shared state
+          </span>
+        </div>
+      )}
+      <div className="canvas-wrap">
+        <div className="canvas" ref={containerRef} />
+        {!hasGraph && (
+          <div className="canvas-empty">
+            The nodes and edges this answer touched will render here.
+          </div>
+        )}
+      </div>
       <div className="steps">
+        <p className="steps-title">Queries that fetched this answer</p>
         {steps.length === 0 && (
-          <p className="empty">Queries that fetched this answer appear here.</p>
+          <p className="canvas-empty" style={{ position: "static" }}>
+            None yet.
+          </p>
         )}
         {steps.map((s, i) => (
           <details key={i} className="step">
             <summary>
               <span className={`badge ${s.role}`}>{s.role}</span>
-              {s.node_ids.length} nodes, {s.edge_ids.length} edges
+              <span>{s.node_ids.length} nodes</span>
+              <span className="count">
+                {s.edge_ids.length} edges · show cypher
+              </span>
             </summary>
             <pre>{s.cypher.trim()}</pre>
           </details>
