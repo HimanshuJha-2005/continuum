@@ -9,7 +9,7 @@ from app.memory.procedural import ProceduralMemory
 from app.memory.semantic import SemanticMemory
 from app.trace import Trace
 
-USER = "alice"
+USER = "alice-test"
 
 
 def main() -> int:

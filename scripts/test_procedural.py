@@ -5,7 +5,7 @@ sys.path.insert(0, "backend")
 from app.falkor import GraphStore
 from app.memory.procedural import ProceduralMemory
 
-USER = "alice"
+USER = "alice-test"
 
 
 def main() -> int:

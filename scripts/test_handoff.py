@@ -5,8 +5,8 @@ sys.path.insert(0, "backend")
 from app.agents.handoff import Handoff
 from app.falkor import GraphStore
 
-USER = "alice"
-OTHER = "bob"
+USER = "alice-test"
+OTHER = "bob-test"
 
 
 def main() -> int:

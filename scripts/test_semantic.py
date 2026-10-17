@@ -5,7 +5,7 @@ sys.path.insert(0, "backend")
 from app.falkor import GraphStore
 from app.memory.semantic import SemanticMemory
 
-USER = "alice"
+USER = "alice-test"
 
 
 def main() -> int:

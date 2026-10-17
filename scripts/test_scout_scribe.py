@@ -9,7 +9,7 @@ from app.memory.episodic import EpisodicMemory
 from app.memory.semantic import SemanticMemory
 from app.trace import Trace
 
-USER = "alice"
+USER = "alice-test"
 
 
 def main() -> int:
