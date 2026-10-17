@@ -23,7 +23,7 @@ LIMIT 5
 READ_TURNS = """
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
 RETURN t.role, t.content, t.ts
-ORDER BY t.ts DESC
+ORDER BY t.ts DESC, t.seq DESC
 LIMIT 5
 """
 

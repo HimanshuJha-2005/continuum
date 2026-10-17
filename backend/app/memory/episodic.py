@@ -1,3 +1,4 @@
+import time
 import uuid
 
 
@@ -26,7 +27,7 @@ class EpisodicMemory:
             user_id,
             """
             MATCH (s:Session {id: $session_id})
-            CREATE (t:Turn {id: $turn_id, role: $role, content: $content, ts: timestamp()})
+            CREATE (t:Turn {id: $turn_id, role: $role, content: $content, ts: timestamp(), seq: $seq})
             CREATE (s)-[:CONTAINS]->(t)
             """,
             {
@@ -34,6 +35,7 @@ class EpisodicMemory:
                 "turn_id": turn_id,
                 "role": role,
                 "content": content,
+                "seq": time.time_ns(),
             },
         )
         return turn_id
@@ -58,7 +60,7 @@ class EpisodicMemory:
             MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(s:Session {id: $session_id})
                   -[:CONTAINS]->(t:Turn)
             RETURN t.role, t.content, t.ts
-            ORDER BY t.ts ASC, id(t) ASC
+            ORDER BY t.ts ASC, t.seq ASC
             """,
             {"user_id": user_id, "session_id": session_id},
         )
