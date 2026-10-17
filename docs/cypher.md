@@ -3,23 +3,46 @@
 > Day 1 deliverable — every query the running product executes is documented here.
 > FalkorDB runs OpenCypher **over the Redis protocol** (`GRAPH.QUERY`); no Bolt/Neo4j syntax.
 
+## Schema & indexes
+
+Created idempotently on first graph access (`ensure_schema`):
+
+```cypher
+CREATE INDEX ON :User(id)
+CREATE INDEX ON :Session(id)
+CREATE INDEX ON :Turn(ts)
+CREATE INDEX ON :Agent(id)
+CREATE INDEX ON :Entity(name)
+CREATE INDEX ON :Fact(predicate)
+CALL db.idx.fulltext.createNodeIndex('Fact', 'subject', 'predicate', 'value')
+```
+
 ## Handoff & shared state
 
-Record a cross-agent handoff (`HANDOFF_TO` with summary + timestamp):
+Record a cross-agent handoff — created **pending**, so it can be injected
+once and never re-injected after consumption:
 
 ```cypher
 MERGE (a:Agent {id: $from_id})
 MERGE (b:Agent {id: $to_id})
-CREATE (a)-[:HANDOFF_TO {id: $handoff_id, summary: $summary, ts: timestamp()}]->(b)
+CREATE (a)-[:HANDOFF_TO {id: $handoff_id, summary: $summary, status: 'pending', ts: timestamp()}]->(b)
 ```
 
-Latest handoff received by an agent:
+Latest *pending* handoff received by an agent:
 
 ```cypher
 MATCH (src:Agent)-[h:HANDOFF_TO]->(dst:Agent {id: $agent_id})
+WHERE h.status = 'pending'
 RETURN src.id, h.summary, h.ts, h.id
 ORDER BY h.ts DESC
 LIMIT 1
+```
+
+Mark a handoff consumed after the receiving agent used it:
+
+```cypher
+MATCH ()-[h:HANDOFF_TO {id: $handoff_id}]->()
+SET h.status = 'consumed', h.consumed_at = timestamp()
 ```
 
 Write shared state (WROTE edge makes the authorship auditable):
@@ -97,7 +120,21 @@ ORDER BY t.ts DESC, t.seq DESC
 LIMIT $limit
 ```
 
-Keyword fact match for the question (superseded facts excluded):
+Primary fact lookup — native full-text index over `Fact` (terms joined with
+FalkorDB's `|` OR operator, superseded facts excluded):
+
+```cypher
+CALL db.idx.fulltext.queryNodes('Fact', $q) YIELD node, score
+WHERE node.valid_to IS NULL
+RETURN node, score
+ORDER BY score DESC
+LIMIT $limit
+```
+
+Substring keyword match — runs when full-text scores fewer than 3 facts
+(catches stems full-text misses: "prefer" vs "preferred"). Words are
+stopword-filtered tokens of 2+ chars, so "Go"/"API"/"AWS" match and an
+all-stopword question never degenerates into match-everything:
 
 ```cypher
 MATCH (f:Fact)
@@ -128,11 +165,27 @@ facts:
 MATCH (e:Entity)-[:RELATES]->(f:Fact)
 WHERE f.id IN $seed_ids
 MATCH (e)-[:RELATES]->(other:Fact)
+WHERE other.valid_to IS NULL
 RETURN e, other
 LIMIT 30
 ```
 
 ## Semantic
+
+Upsert an entity (type defaults to `concept` when created via fact extraction):
+
+```cypher
+MERGE (e:Entity {name: $name})
+SET e.type = $type
+```
+
+Link an extracted entity back to the turn that mentioned it:
+
+```cypher
+MATCH (t:Turn {id: $turn_id})
+MATCH (e:Entity {name: $name})
+MERGE (t)-[:MENTIONS]->(e)
+```
 
 Conflict check before upsert — every *active* fact with the same subject and
 predicate but a different value gets superseded (invariant: at most one active

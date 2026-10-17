@@ -51,14 +51,16 @@ this arc — each step lights up a different part of the memory graph:
 
 1. **Write a memory** — "I prefer TypeScript for new projects."
    The trace panel shows episodic → semantic → procedural retrieval with the
-   Cypher behind each step.
+   Cypher behind each step — click any node to inspect its properties and the
+   query that fetched it.
 2. **Change your mind** — "Update: TypeScript is preferred for mobile apps now."
    The old fact gains a `SUPERSEDES` edge and leaves retrieval; the answer
    cites only the current fact. The graph shows *why* the answer changed.
 3. **Cold handoff** — switch the mode toggle to **Scout** and ask
    "What stack did we pick?" Scout returns a research report and writes a
-   handoff; switch back to **Scribe** for the next message and it picks the
-   handoff up — the trace panel lists `Scout → Scribe` with shared state.
+   handoff; switch back to **Scribe** and ask "What stack did we settle on
+   for the frontend?" — Scribe picks the pending handoff up (irrelevant
+   questions don't get it), and the trace panel lists `Scout → Scribe`.
 
 ## Graph model
 

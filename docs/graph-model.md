@@ -29,7 +29,7 @@ One FalkorDB instance, one graph per user (`user:{id}`) via multigraph topology.
 | `RELATES` | Fact → Entity/Fact | `predicate` | semantic links |
 | `WROTE` | Agent → Fact/SharedState | `ts` | authorship |
 | `READ` | Agent → Fact/SharedState | `ts` | read provenance |
-| `HANDOFF_TO` | Agent → Agent | `summary`, `ts` | cross-agent handoff |
+| `HANDOFF_TO` | Agent → Agent | `summary`, `status` (`pending`/`consumed`), `ts`, `consumed_at` | cross-agent handoff |
 | `SUPERSEDES` | Fact → Fact | | temporal validity chain |
 | `PREFERS` | User → Preference | | preference ownership |
 | `HAS_PROCEDURE` | User → Procedure | | procedure ownership |
