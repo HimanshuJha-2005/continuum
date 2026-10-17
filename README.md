@@ -80,9 +80,9 @@ FalkorDB, steady state:
 
 | metric | value |
 |---|---|
-| Throughput | ~4,400 ops/s |
-| Reads p50 / p95 | ~3 ms / ~6 ms |
-| Writes p50 / p95 | ~7 ms / ~16 ms |
+| Throughput | ~4,300 ops/s |
+| Reads p50 / p95 | ~3 ms / ~7 ms |
+| Writes p50 / p95 | ~6 ms / ~12 ms |
 
 First-run against cold graphs pays an index-build tax (writes p95 ~90 ms),
 then settles into the numbers above. Per-user multigraph isolation means no
