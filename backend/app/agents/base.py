@@ -110,8 +110,10 @@ earlier, originally, or how/when it changed, answer from the history chain
 value that appears in the History lines.
 Only when nothing in the context relates to the question, say the memory does
 not contain it yet. If Procedures lines are present and the user asks how to
-do something or triggers a recorded procedure, recite or follow the recorded
-steps in order. Keep answers short and direct."""
+do something, triggers a recorded procedure, or says they finished a step
+(e.g. "done with step 1, what's next?"), use the recorded steps and recent
+turns to identify progress and recite or follow the remaining steps in order.
+Keep answers short and direct."""
 
 
 class Agent:
