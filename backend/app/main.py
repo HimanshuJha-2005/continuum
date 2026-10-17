@@ -55,6 +55,7 @@ def _elements(result) -> dict:
                 "label": _node_label(node),
                 "type": (node.labels or ["?"])[0],
                 "props": props,
+                "valid_to": props.get("valid_to"),
             }
         }
 
@@ -116,6 +117,8 @@ def chat(body: ChatRequest):
             answer = scribe.act(body.user_id, body.message, trace=trace)
             epi.add_turn(body.user_id, body.session_id, "assistant", answer)
             response = {"answer": answer}
+            if scribe.last_coordinated:
+                response["coordinated"] = True
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"agent failed: {e}")
     response["extracted"] = extraction
@@ -136,6 +139,26 @@ def memory_summary(user_id: str):
         "procedures": proc.procedures(user_id),
         "shared_state": Handoff(store).entries(user_id),
     }
+
+
+@app.get("/memory/full")
+def memory_full(user_id: str):
+    result = store.ro_query(
+        user_id,
+        """
+        MATCH (n)
+        OPTIONAL MATCH (n)-[r]-(m)
+        RETURN n, r, m
+        LIMIT 500
+        """,
+    )
+    return {"user_id": user_id, **_elements(result)}
+
+
+@app.get("/session_turns")
+def session_turns(user_id: str, session_id: str):
+    turns = EpisodicMemory(store).session_turns(user_id, session_id)
+    return {"session_id": session_id, "turns": turns}
 
 
 @app.get("/memory/subgraph")
