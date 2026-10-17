@@ -74,6 +74,9 @@ this arc — each step lights up a different part of the memory graph:
    session, and the "open session…" dropdown replays any past session's
    turns. Both work for brand-new users — turns are self-sufficient in the
    graph, nothing is silently dropped.
+7. **Procedures fire** — ask "How do I run the deploy preview?" Scribe pulls
+   the recorded `deploy-preview` procedure from procedural memory and recites
+   the steps in order: Build → run tests → push branch → open PR.
 
 ## Graph model
 

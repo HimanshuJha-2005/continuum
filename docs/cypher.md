@@ -203,6 +203,27 @@ RETURN e, other
 LIMIT 30
 ```
 
+Zero-seed fallback — when keyword retrieval found no facts (`matched == 0`),
+Scout seeds expansion from entities mentioned in the user's recent turns
+instead of skipping:
+
+```cypher
+MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
+MATCH (t)-[:MENTIONS]->(e:Entity)
+MATCH (e)-[:RELATES]->(f:Fact)
+WHERE f.valid_to IS NULL
+RETURN e, f
+LIMIT 30
+```
+
+Procedures for Scribe's context (so the agent can recite or follow recorded
+steps on trigger):
+
+```cypher
+MATCH (u:User {id: $user_id})-[:HAS_PROCEDURE]->(p:Procedure)
+RETURN p
+```
+
 ## Semantic
 
 Upsert an entity (type defaults to `concept` when created via fact extraction):
