@@ -99,6 +99,7 @@ class SemanticMemory:
                 user_id,
                 """
                 MERGE (subj:Entity {name: $subject})
+                ON CREATE SET subj.type = 'concept'
                 MERGE (f:Fact {subject: $subject, predicate: $predicate, value: $value})
                 ON CREATE SET f.id = $fact_id, f.confidence = $confidence, f.valid_from = timestamp()
                 ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence

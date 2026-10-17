@@ -24,12 +24,20 @@ def main() -> int:
         USER,
         {"subject": "TypeScript", "predicate": "picked for", "value": "frontend", "confidence": 1.0},
     )
+    SemanticMemory(store).upsert_fact(
+        USER,
+        {"subject": "TypeScript", "predicate": "offers", "value": "static types", "confidence": 1.0},
+    )
 
     trace = Trace(turn_id="t-scout")
     scout = Scout(store)
     findings = scout.act(USER, "What stack did we pick?", trace=trace)
     assert "TypeScript" in findings, findings
-    assert len(trace.steps) >= 2, [s.role for s in trace.steps]
+    assert "Research report" in findings, findings
+    assert "static types" in findings, "entity expansion did not surface linked facts"
+    roles = [s.role for s in trace.steps]
+    assert len(roles) >= 4, roles
+    assert roles.count("semantic") >= 2, roles
 
     handoff = store.ro_query(
         USER,
