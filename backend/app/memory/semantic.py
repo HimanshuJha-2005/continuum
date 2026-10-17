@@ -88,13 +88,15 @@ class SemanticMemory:
             """
             MATCH (f:Fact {subject: $subject, predicate: $predicate})
             WHERE f.value <> $value
+            AND f.valid_to IS NULL
             RETURN f.id
-            LIMIT 1
             """,
             {"subject": fact["subject"], "predicate": fact["predicate"], "value": fact["value"]},
         )
         if existing.result_set:
-            stored_id = self.supersede(user_id, existing.result_set[0][0], fact)
+            stored_id = fact.get("fact_id") or str(uuid.uuid4())
+            for row in existing.result_set:
+                stored_id = self.supersede(user_id, row[0], fact)
         else:
             fact_id = str(uuid.uuid4())
             result = self.store.query(
@@ -104,7 +106,7 @@ class SemanticMemory:
                 ON CREATE SET subj.type = 'concept'
                 MERGE (f:Fact {subject: $subject, predicate: $predicate, value: $value})
                 ON CREATE SET f.id = $fact_id, f.confidence = $confidence, f.valid_from = timestamp()
-                ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence
+                ON MATCH SET f.last_seen = timestamp(), f.confidence = $confidence, f.valid_to = NULL
                 MERGE (subj)-[:RELATES {predicate: $predicate}]->(f)
                 RETURN f.id
                 """,
@@ -154,23 +156,26 @@ class SemanticMemory:
 
     def supersede(self, user_id: str, old_fact_id: str, new_fact: dict) -> str:
         new_id = str(uuid.uuid4())
-        self.store.query(
+        result = self.store.query(
             user_id,
             """
             MATCH (old:Fact {id: $old_id})
             SET old.valid_to = timestamp()
-            CREATE (n:Fact {
-                id: $new_id,
+            MERGE (n:Fact {
                 subject: $subject,
                 predicate: $predicate,
-                value: $value,
-                confidence: $confidence,
-                valid_from: timestamp()
+                value: $value
             })
-            CREATE (n)-[:SUPERSEDES]->(old)
-            WITH n
-            MATCH (s:Entity {name: $subject})-[:RELATES]->(:Fact {id: $old_id})
-            MERGE (s)-[:RELATES {predicate: $predicate}]->(n)
+            ON CREATE SET
+                n.id = $new_id,
+                n.confidence = $confidence,
+                n.valid_from = timestamp()
+            ON MATCH SET
+                n.last_seen = timestamp(),
+                n.confidence = $confidence,
+                n.valid_to = NULL
+            MERGE (n)-[:SUPERSEDES]->(old)
+            RETURN n.id
             """,
             {
                 "old_id": old_fact_id,
@@ -181,4 +186,18 @@ class SemanticMemory:
                 "confidence": new_fact.get("confidence", 0.9),
             },
         )
-        return new_id
+        stored_id = result.result_set[0][0]
+        self.store.query(
+            user_id,
+            """
+            MATCH (s:Entity {name: $subject})-[:RELATES]->(:Fact {id: $old_id})
+            MERGE (s)-[:RELATES {predicate: $predicate}]->(:Fact {id: $stored_id})
+            """,
+            {
+                "subject": new_fact["subject"],
+                "predicate": new_fact["predicate"],
+                "old_id": old_fact_id,
+                "stored_id": stored_id,
+            },
+        )
+        return stored_id
