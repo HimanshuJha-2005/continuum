@@ -9,6 +9,33 @@ ORDER BY t.ts DESC, t.seq DESC
 LIMIT $limit
 """
 
+STOPWORDS = {
+    "a", "an", "the", "and", "or", "but", "if", "then", "else", "when",
+    "where", "what", "which", "who", "whom", "whose", "how", "why", "is",
+    "are", "was", "were", "be", "been", "being", "do", "does", "did",
+    "doing", "can", "could", "will", "would", "shall", "should", "may",
+    "might", "must", "have", "has", "had", "having", "i", "me", "my",
+    "we", "our", "ours", "you", "your", "he", "she", "it", "its", "they",
+    "them", "their", "this", "that", "these", "those", "there", "here",
+    "of", "to", "in", "on", "at", "by", "for", "with", "about", "as",
+    "from", "up", "out", "off", "over", "under", "again", "please", "tell",
+}
+
+
+def significant_words(text: str, limit: int = 6) -> list[str]:
+    """Meaningful tokens for retrieval and relevance: 2+ chars, not stopwords,
+    deduped in order. Keeps short tech names (Go, API, AWS)."""
+    words: list[str] = []
+    for w in re.findall(r"[A-Za-z0-9+#.]{2,}", text.lower()):
+        w = w.strip(".+#")
+        if not w or w in STOPWORDS or w in words:
+            continue
+        words.append(w)
+        if len(words) >= limit:
+            break
+    return words
+
+
 FACT_MATCH = """
 MATCH (f:Fact)
 WHERE any(w IN $words WHERE toLower(f.subject) CONTAINS w
@@ -17,6 +44,14 @@ WHERE any(w IN $words WHERE toLower(f.subject) CONTAINS w
 AND f.valid_to IS NULL
 RETURN f
 ORDER BY f.confidence DESC
+LIMIT $limit
+"""
+
+FULLTEXT_FACTS = """
+CALL db.idx.fulltext.queryNodes('Fact', $q) YIELD node, score
+WHERE node.valid_to IS NULL
+RETURN node, score
+ORDER BY score DESC
 LIMIT $limit
 """
 
@@ -54,7 +89,7 @@ class Agent:
         self.llm = llm or get_llm()
 
     def build_context(self, user_id: str, query: str, trace=None) -> dict:
-        words = [w.lower() for w in re.findall(r"[A-Za-z0-9+#.]{4,}", query)][:6] or [""]
+        words = significant_words(query)
 
         result = self.store.ro_query(
             user_id, RECENT_TURNS, {"user_id": user_id, "limit": 8}
@@ -68,9 +103,6 @@ class Agent:
             props["node_id"] = node.id
             turns.append(props)
 
-        result = self.store.ro_query(user_id, FACT_MATCH, {"words": words, "limit": 8})
-        if trace:
-            trace.add(FACT_MATCH, {"words": words, "limit": 8}, result, "semantic")
         facts: list[dict] = []
         seen: set[int] = set()
 
@@ -84,7 +116,30 @@ class Agent:
                 props["node_id"] = node.id
                 facts.append(props)
 
-        collect(result)
+        if words:
+            try:
+                fulltext = self.store.ro_query(
+                    user_id,
+                    FULLTEXT_FACTS,
+                    {"q": " | ".join(words), "limit": 8},
+                )
+                if trace:
+                    trace.add(
+                        FULLTEXT_FACTS,
+                        {"q": " | ".join(words), "limit": 8},
+                        fulltext,
+                        "semantic",
+                    )
+                collect(fulltext)
+            except Exception:
+                pass
+            if len(facts) < 3:
+                result = self.store.ro_query(
+                    user_id, FACT_MATCH, {"words": words, "limit": 8 - len(facts)}
+                )
+                if trace:
+                    trace.add(FACT_MATCH, {"words": words, "limit": 8 - len(facts)}, result, "semantic")
+                collect(result)
         if len(facts) < 3:
             fallback = self.store.ro_query(
                 user_id, RECENT_FACTS, {"limit": 8 - len(facts)}

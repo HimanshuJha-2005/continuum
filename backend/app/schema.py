@@ -5,6 +5,7 @@ INDEX_QUERIES = [
     "CREATE INDEX ON :Agent(id)",
     "CREATE INDEX ON :Entity(name)",
     "CREATE INDEX ON :Fact(predicate)",
+    "CALL db.idx.fulltext.createNodeIndex('Fact', 'subject', 'predicate', 'value')",
 ]
 
 
