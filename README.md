@@ -52,9 +52,9 @@ serving the React build, all behind one public URL.
 
 ## Video demo
 
-[![Continuum Demo Video](https://img.shields.io/badge/YouTube-Video%20Demo-red?logo=youtube)](YOUR_YOUTUBE_LINK_HERE)
+[![Continuum Demo Video](https://img.shields.io/badge/YouTube-Video%20Demo-red?logo=youtube)](https://youtu.be/BvvvxxhEayw)
 
-Watch the 2.5-minute walkthrough on YouTube: [YOUR_YOUTUBE_LINK_HERE](YOUR_YOUTUBE_LINK_HERE)
+Watch the 3.5-minute walkthrough on YouTube: [Continuum demo](https://youtu.be/BvvvxxhEayw)
 
 ## Deploying it yourself
 
