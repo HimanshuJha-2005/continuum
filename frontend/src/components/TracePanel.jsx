@@ -93,9 +93,11 @@ export default function TracePanel({ steps, elements, stats, handoffs, brainMode
       layout: {
         name: "cose",
         animate: false,
-        padding: 32,
-        idealEdgeLength: 70,
-        nodeRepulsion: 4500,
+        padding: 40,
+        idealEdgeLength: 95,
+        nodeRepulsion: 9000,
+        componentSpacing: 80,
+        minNodeSpacing: 45,
       },
     });
     cy.on("tap", "node", (evt) => setSelected(evt.target.data()));

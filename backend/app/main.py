@@ -33,11 +33,23 @@ class ChatRequest(BaseModel):
 
 def _node_label(node) -> str:
     props = node.properties
-    for key in ("name", "key", "subject", "id"):
+    labels = set(node.labels or [])
+    if "Turn" in labels:
+        return str(props.get("content", ""))[:36]
+    if "Procedure" in labels:
+        return str(props.get("name", ""))[:36]
+    if "Fact" in labels:
+        subj = props.get("subject", "")
+        val = props.get("value", "")
+        if subj and val:
+            return f"{subj} → {val}"[:44]
+    for key in ("name", "key", "subject"):
         if key in props:
-            return str(props[key])
+            return str(props[key])[:44]
+    if "id" in props:
+        return str(props["id"])
     if "content" in props:
-        return str(props["content"])[:40]
+        return str(props["content"])[:36]
     return str(node.id)
 
 
