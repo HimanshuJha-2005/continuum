@@ -75,6 +75,20 @@ RETURN root, [n IN nodes(path) | n.value] AS evolution
 LIMIT 6
 """
 
+HISTORY_CHAINS = """
+MATCH path = (root:Fact)-[:SUPERSEDES*1..5]->(old:Fact)
+WHERE NOT (root)<-[:SUPERSEDES]-()
+RETURN root, [n IN nodes(path) | n.value] AS evolution
+ORDER BY root.last_seen DESC
+LIMIT 6
+"""
+
+TEMPORAL_RE = re.compile(
+    r"\b(before|previously|earlier|originally|first|used to|prior|once|"
+    r"initially|back then|used-to|was|were|history|before this)\b",
+    re.I,
+)
+
 ENTITY_CONTEXT = """
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
 MATCH (t)-[:MENTIONS]->(e:Entity)
@@ -181,9 +195,14 @@ class Agent:
 
         history: list[dict] = []
         if words:
-            hres = self.store.ro_query(user_id, HISTORY, {"words": words})
-            if trace:
-                trace.add(HISTORY, {"words": words}, hres, "temporal")
+            if TEMPORAL_RE.search(query):
+                hres = self.store.ro_query(user_id, HISTORY_CHAINS, {})
+                if trace:
+                    trace.add(HISTORY_CHAINS, {}, hres, "temporal")
+            else:
+                hres = self.store.ro_query(user_id, HISTORY, {"words": words})
+                if trace:
+                    trace.add(HISTORY, {"words": words}, hres, "temporal")
             for row in hres.result_set:
                 root, evolution = row[0], row[1]
                 if not evolution or len(evolution) < 2:

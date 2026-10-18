@@ -151,9 +151,9 @@ ORDER BY f.confidence DESC
 LIMIT $limit
 ```
 
-Temporal history — variable-length walk across `SUPERSEDES` chains, anchored
-on any word-matched fact (active or superseded). Answers "what did we use
-before X" / "when did we switch":
+Temporal history — two paths, selected by the question. Keyword-anchored walk:
+anchor on any word-matched fact (active or superseded), then follow
+`SUPERSEDES` chains:
 
 ```cypher
 MATCH (f:Fact)
@@ -164,6 +164,19 @@ OPTIONAL MATCH (newer:Fact)-[:SUPERSEDES*1..5]->(f)
 WITH DISTINCT COALESCE(newer, f) AS root
 OPTIONAL MATCH path = (root)-[:SUPERSEDES*1..5]->(old:Fact)
 RETURN root, [n IN nodes(path) | n.value] AS evolution
+LIMIT 6
+```
+
+When the question uses temporal wording (`before`, `previously`, `was`,
+`history`, …) keyword overlap is unreliable — "what database were we using
+before" shares no word with "Continuum uses FastAPI backend…". Those questions
+instead walk every chain root directly:
+
+```cypher
+MATCH path = (root:Fact)-[:SUPERSEDES*1..5]->(old:Fact)
+WHERE NOT (root)<-[:SUPERSEDES]-()
+RETURN root, [n IN nodes(path) | n.value] AS evolution
+ORDER BY root.last_seen DESC
 LIMIT 6
 ```
 
