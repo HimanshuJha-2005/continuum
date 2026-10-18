@@ -104,9 +104,14 @@ export default function App() {
           },
         ]);
         setSteps(res.trace?.steps ?? []);
-        const ids = [
-          ...new Set(res.trace?.steps?.flatMap((s) => s.node_ids) ?? []),
+        const focusedSteps =
+          res.trace?.steps?.filter((s) => s.role !== "episodic") ?? [];
+        const focusedIds = [
+          ...new Set(focusedSteps.flatMap((s) => s.node_ids) ?? []),
         ];
+        const ids = focusedIds.length
+          ? focusedIds
+          : [...new Set(res.trace?.steps?.flatMap((s) => s.node_ids) ?? [])];
         if (ids.length && !brainMode) {
           const sg = await getSubgraph(userId, ids);
           setElements({ nodes: sg.nodes, edges: sg.edges });

@@ -239,7 +239,7 @@ export default function TracePanel({ steps, elements, stats, handoffs, brainMode
               <span className={`badge ${s.role}`}>{s.role}</span>
               <span>{s.node_ids.length} nodes</span>
               <span className="count">
-                {s.edge_ids.length} edges · show cypher
+                {s.edge_ids.length > 0 ? `${s.edge_ids.length} edges · ` : ""}show cypher
               </span>
             </summary>
             <pre>{s.cypher.trim()}</pre>

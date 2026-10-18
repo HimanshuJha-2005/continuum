@@ -42,7 +42,7 @@ def _node_label(node) -> str:
         subj = str(props.get("subject", ""))
         val = str(props.get("value", ""))
         if subj and val:
-            return f"{subj} → {val}"[:24]
+            return f"{subj} -> {val}"[:24]
         return (subj or val)[:24]
     for key in ("name", "key"):
         if key in props:
@@ -188,8 +188,9 @@ def memory_subgraph(user_id: str, node_ids: str = Query(..., description="comma-
         """
         MATCH (n) WHERE id(n) IN $ids
         OPTIONAL MATCH (n)-[r]-(m)
+        WHERE NOT (m:User OR m:Session)
         RETURN n, r, m
-        LIMIT 300
+        LIMIT 150
         """,
         {"ids": ids},
     )

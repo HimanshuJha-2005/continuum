@@ -115,13 +115,14 @@ facts, preferences, and supersession history pulled from your graph memory.
 The context already includes facts captured from the current message.
 If a fact or preference in the context answers the question, state it directly
 and confidently, citing it as [fact: subject predicate value].
-If the message states an update (e.g. "we now prefer X"), confirm what the
-memory currently holds about it, citing the matching fact.
-If History lines are present and the question asks what something was before,
+If the message states an update or a new preference/fact, confirm what was
+recorded directly and naturally: e.g. "Got it — noted that you prefer TypeScript for new frontend projects [fact: TypeScript preferred for new frontend projects]."
+Do NOT recite past history or superseded values unless the user explicitly asks
+about the past, earlier choices, or how things changed.
+If History lines are present and the user asks what something was before,
 earlier, originally, or how/when it changed, answer from the history chain
 (oldest to newest) and cite both the past and current fact, e.g.
-"Previously X, changed to Y [fact: ...]". Never claim the memory lacks a
-value that appears in the History lines.
+"Previously X, changed to Y [fact: ...]".
 Only when nothing in the context relates to the question, say the memory does
 not contain it yet. If Procedures lines are present and the user asks how to
 do something, triggers a recorded procedure, or says they finished a step
@@ -194,15 +195,10 @@ class Agent:
         matched = len(facts)
 
         history: list[dict] = []
-        if words:
-            if TEMPORAL_RE.search(query):
-                hres = self.store.ro_query(user_id, HISTORY_CHAINS, {})
-                if trace:
-                    trace.add(HISTORY_CHAINS, {}, hres, "temporal")
-            else:
-                hres = self.store.ro_query(user_id, HISTORY, {"words": words})
-                if trace:
-                    trace.add(HISTORY, {"words": words}, hres, "temporal")
+        if words and TEMPORAL_RE.search(query):
+            hres = self.store.ro_query(user_id, HISTORY_CHAINS, {})
+            if trace:
+                trace.add(HISTORY_CHAINS, {}, hres, "temporal")
             for row in hres.result_set:
                 root, evolution = row[0], row[1]
                 if not evolution or len(evolution) < 2:
