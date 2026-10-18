@@ -35,21 +35,22 @@ def _node_label(node) -> str:
     props = node.properties
     labels = set(node.labels or [])
     if "Turn" in labels:
-        return str(props.get("content", ""))[:36]
+        return str(props.get("content", ""))[:16]
     if "Procedure" in labels:
-        return str(props.get("name", ""))[:36]
+        return str(props.get("name", ""))[:20]
     if "Fact" in labels:
-        subj = props.get("subject", "")
-        val = props.get("value", "")
+        subj = str(props.get("subject", ""))
+        val = str(props.get("value", ""))
         if subj and val:
-            return f"{subj} → {val}"[:44]
-    for key in ("name", "key", "subject"):
+            return f"{subj} → {val}"[:24]
+        return (subj or val)[:24]
+    for key in ("name", "key"):
         if key in props:
-            return str(props[key])[:44]
+            return str(props[key])[:20]
     if "id" in props:
-        return str(props["id"])
+        return str(props["id"])[:20]
     if "content" in props:
-        return str(props["content"])[:36]
+        return str(props["content"])[:16]
     return str(node.id)
 
 
