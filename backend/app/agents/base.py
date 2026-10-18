@@ -121,8 +121,9 @@ Do NOT recite past history or superseded values unless the user explicitly asks
 about the past, earlier choices, or how things changed.
 If History lines are present and the user asks what something was before,
 earlier, originally, or how/when it changed, answer from the history chain
-(oldest to newest) and cite both the past and current fact, e.g.
-"Previously X, changed to Y [fact: ...]".
+(oldest to newest), quoting each value from the History lines verbatim — never
+infer the previous value from the wording of the question or recent turns, e.g.
+"Previously <old value from History>, changed to <new value> [fact: ...]".
 Only when nothing in the context relates to the question, say the memory does
 not contain it yet. If Procedures lines are present and the user asks how to
 do something, triggers a recorded procedure, or says they finished a step
