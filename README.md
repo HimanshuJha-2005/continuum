@@ -44,6 +44,28 @@ cd frontend && npm install && npm run dev
 Copy `.env.example` to `.env` and add your `GEMINI_API_KEY` (free tier at
 https://aistudio.google.com) or `GROQ_API_KEY`.
 
+## Live demo
+
+**http://16.4.24.249** — AWS EC2 (`t3.small`, ap-south-1) running the full
+stack via `docker-compose.prod.yml`: FalkorDB + FastAPI backend + nginx
+serving the React build, all behind one public URL.
+
+## Deploying it yourself
+
+The production stack is `docker-compose.prod.yml` (FalkorDB + backend +
+nginx frontend — one URL, no separate dev server). To deploy:
+
+```bash
+# on any Docker host with the repo cloned and a .env in place:
+docker-compose -f docker-compose.prod.yml up -d --build
+curl -X POST http://<host>/seed   # populate the demo graph
+```
+
+The nginx container serves the built React app and proxies `/chat`,
+`/memory`, `/agents`, `/health`, `/seed`, and `/session_turns` to the
+backend. The frontend build runs inside Docker (multi-stage), so the host
+never needs Node.
+
 ## What to try
 
 Open http://localhost:5173 (Alice/Bob user switcher in the header) and run
