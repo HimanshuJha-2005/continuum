@@ -50,6 +50,12 @@ https://aistudio.google.com) or `GROQ_API_KEY`.
 stack via `docker-compose.prod.yml`: FalkorDB + FastAPI backend + nginx
 serving the React build, all behind one public URL.
 
+## Video demo
+
+[![Continuum Demo Video](https://img.shields.io/badge/YouTube-Video%20Demo-red?logo=youtube)](YOUR_YOUTUBE_LINK_HERE)
+
+Watch the 2.5-minute walkthrough on YouTube: [YOUR_YOUTUBE_LINK_HERE](YOUR_YOUTUBE_LINK_HERE)
+
 ## Deploying it yourself
 
 The production stack is `docker-compose.prod.yml` (FalkorDB + backend +
