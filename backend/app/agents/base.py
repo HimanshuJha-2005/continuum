@@ -273,6 +273,16 @@ class Agent:
     ) -> str:
         if ctx is None:
             ctx = self.build_context(user_id, query, trace)
+        if ctx.get("history") and TEMPORAL_RE.search(query):
+            for h in ctx["history"]:
+                evo = h["evolution"]
+                if len(evo) >= 2:
+                    root = h["root"]
+                    return (
+                        f"Previously {evo[1]}, changed to {evo[0]} "
+                        f"[fact: {root.get('subject', '?')} "
+                        f"{root.get('predicate', '?')} {evo[0]}]"
+                    )
         lines = ["Memory context:"]
         if extra_context:
             lines.append(extra_context)
