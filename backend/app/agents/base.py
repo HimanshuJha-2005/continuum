@@ -283,6 +283,48 @@ class Agent:
                         f"[fact: {root.get('subject', '?')} "
                         f"{root.get('predicate', '?')} {evo[0]}]"
                     )
+        if ctx.get("procedures"):
+            q = query.lower()
+            completion = re.search(
+                r"(finish(ed)?|done with|completed)", q
+            )
+            for p in ctx["procedures"]:
+                steps = p.get("steps") or []
+                if not steps:
+                    continue
+                name = str(p.get("name") or "")
+                trigger = str(p.get("trigger") or "")
+                if completion:
+                    idx = -1
+                    m = re.search(r"step\s*(\d+)", q)
+                    if m:
+                        idx = int(m.group(1)) - 1
+                    else:
+                        for i, s in enumerate(steps):
+                            sl = str(s).lower()
+                            if sl in q or (
+                                len(sl) > 3
+                                and any(w in q for w in sl.split() if len(w) > 3)
+                            ):
+                                idx = i
+                                break
+                    if idx < 0:
+                        idx = len(steps) - 1
+                    if idx + 1 < len(steps):
+                        nxt = steps[idx + 1]
+                        return f"{nxt[0].upper()}{nxt[1:]}."
+                    return f"You have completed all the steps of {name}."
+                name_toks = [
+                    t for t in re.split(r"[-_\s]+", name.lower()) if len(t) > 2
+                ]
+                if (name_toks and all(t in q for t in name_toks)) or (
+                    trigger and trigger.lower() in q
+                ):
+                    listed = " -> ".join(steps)
+                    return (
+                        f"Based on the recorded procedure for {name} "
+                        f"(trigger: {trigger}), the steps are: {listed}."
+                    )
         lines = ["Memory context:"]
         if extra_context:
             lines.append(extra_context)
