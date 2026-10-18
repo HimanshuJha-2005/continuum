@@ -52,7 +52,7 @@ serving the React build, all behind one public URL.
 
 ## Video demo
 
-[![Continuum demo](https://img.youtube.com/vi/BvvvxxhEayw/maxresdefault.jpg)](https://youtu.be/BvvvxxhEayw)
+[![Continuum demo](https://img.youtube.com/vi/BvvvxxhEayw/maxresdefault.jpg?v=2)](https://youtu.be/BvvvxxhEayw)
 
 ## Deploying it yourself
 
