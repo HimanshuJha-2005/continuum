@@ -11,6 +11,7 @@ from app.falkor import store
 from app.memory.episodic import EpisodicMemory
 from app.memory.procedural import ProceduralMemory
 from app.memory.semantic import SemanticMemory
+from app.seed import seed as seed_demo
 from app.trace import Trace
 
 app = FastAPI(title="Continuum", version="0.1.0")
@@ -197,3 +198,9 @@ def agents(user_id: str):
         ],
         "handoffs": Handoff(store).recent_all(user_id),
     }
+
+
+@app.post("/seed")
+def seed():
+    """Reset and repopulate the demo users (alice/bob) for a clean demo state."""
+    return {"seeded": seed_demo(store)}
