@@ -89,6 +89,22 @@ TEMPORAL_RE = re.compile(
     re.I,
 )
 
+
+def chain_matches_words(root: dict, evolution: list, words: list[str]) -> bool:
+    """Checks whether a history chain's subject, predicate, or evolution values
+    overlap with query keywords. Filters out generic temporal markers when specific
+    topic keywords exist so that questions like 'What was my first project?' do not
+    falsely match an unrelated preference change (e.g. editor)."""
+    if not words:
+        return False
+    topic_words = [w for w in words if not TEMPORAL_RE.search(w)]
+    match_words = topic_words if topic_words else words
+    subject = str(root.get("subject", "")).lower()
+    predicate = str(root.get("predicate", "")).lower()
+    evo_vals = " ".join(str(v) for v in evolution).lower()
+    chain_text = f"{subject} {predicate} {evo_vals}"
+    return any(w in chain_text for w in match_words)
+
 ENTITY_CONTEXT = """
 MATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CONTAINS]->(t:Turn)
 MATCH (t)-[:MENTIONS]->(e:Entity)
@@ -205,7 +221,8 @@ class Agent:
                 if not evolution or len(evolution) < 2:
                     continue
                 props = dict(root.properties) if root else {}
-                history.append({"root": props, "evolution": evolution})
+                if chain_matches_words(props, evolution, words):
+                    history.append({"root": props, "evolution": evolution})
 
         if len(facts) < 3:
             fallback = self.store.ro_query(
@@ -274,15 +291,17 @@ class Agent:
         if ctx is None:
             ctx = self.build_context(user_id, query, trace)
         if ctx.get("history") and TEMPORAL_RE.search(query):
+            words = significant_words(query)
             for h in ctx["history"]:
                 evo = h["evolution"]
                 if len(evo) >= 2:
                     root = h["root"]
-                    return (
-                        f"Previously {evo[1]}, changed to {evo[0]} "
-                        f"[fact: {root.get('subject', '?')} "
-                        f"{root.get('predicate', '?')} {evo[0]}]"
-                    )
+                    if chain_matches_words(root, evo, words):
+                        return (
+                            f"Previously {evo[1]}, changed to {evo[0]} "
+                            f"[fact: {root.get('subject', '?')} "
+                            f"{root.get('predicate', '?')} {evo[0]}]"
+                        )
         if ctx.get("procedures"):
             q = query.lower()
             completion = re.search(
